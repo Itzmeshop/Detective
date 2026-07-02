@@ -2,137 +2,182 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Детектив: Восемь Дел</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>AR Детектив: Восемь Дел (Pro)</title>
+    <!-- Подключаем стабильную версию A-Frame -->
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #121212; color: #e0e0e0; overflow: hidden; }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0c0c0e; color: #e0e0e0; overflow: hidden; }
         
         /* ГЛАВНОЕ МЕНЮ */
-        #main-menu { padding: 20px; display: flex; flex-direction: column; height: 100%; overflow-y: auto; }
-        .menu-title { text-align: center; margin: 20px 0; font-size: 24px; color: #f1c40f; letter-spacing: 2px; }
-        .cases-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; max-width: 600px; margin: 0 auto; }
-        .case-card { background: #1e1e1e; border: 2px solid #333; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: 0.2s; position: relative; min-height: 120px; display: flex; flex-direction: column; justify-content: center; }
-        .case-card.active { border-color: #f1c40f; box-shadow: 0 0 10px rgba(241, 196, 15, 0.2); }
-        .case-card.locked { opacity: 0.4; cursor: not-allowed; }
-        .case-icon { font-size: 32px; margin-bottom: 5px; }
-        .lock-icon { position: absolute; top: 10px; right: 10px; font-size: 16px; }
+        #main-menu { padding: 25px; display: flex; flex-direction: column; height: 100%; overflow-y: auto; background: linear-gradient(135deg, #111116 0%, #070709 100%); }
+        .menu-title { text-align: center; margin: 20px 0 30px 0; font-size: 26px; color: #f1c40f; letter-spacing: 3px; font-weight: 800; text-shadow: 0 2px 10px rgba(241, 196, 15, 0.3); }
+        .cases-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; max-width: 600px; margin: 0 auto; width: 100%; }
+        .case-card { background: #16161e; border: 1px solid #262633; border-radius: 16px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.25s ease; position: relative; min-height: 130px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .case-card.active:hover { border-color: #f1c40f; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(241, 196, 15, 0.15); }
+        .case-card.locked { opacity: 0.35; cursor: not-allowed; background: #0f0f14; }
+        .case-icon { font-size: 34px; margin-bottom: 8px; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5)); }
+        .lock-icon { position: absolute; top: 12px; right: 12px; font-size: 14px; opacity: 0.7; }
 
         /* ИГРОВОЙ ЭКРАН ДЕЛА */
         #game-screen { display: none; width: 100%; height: 100%; flex-direction: column; position: relative; }
         
         /* Верхняя панель */
-        .top-bar { height: 50px; background: #1a1a1a; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid #333; z-index: 10; }
-        .back-btn { background: none; border: none; color: #f1c40f; font-size: 16px; cursor: pointer; }
+        .top-bar { height: 60px; background: #111116; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #22222b; z-index: 10; }
+        .back-btn { background: #1c1c24; border: 1px solid #333344; color: #f1c40f; padding: 6px 14px; border-radius: 8px; font-size: 14px; cursor: pointer; font-weight: 600; }
 
         /* Контент вкладок */
-        .tab-content { flex-grow: 1; position: relative; display: none; overflow-y: auto; height: calc(100% - 110px); }
+        .tab-content { flex-grow: 1; position: relative; display: none; overflow-y: auto; height: calc(100% - 120px); }
         .tab-content.active-tab { display: block; }
 
         /* Вкладка 1: AR Осмотр */
-        #tab-view { height: calc(100% - 110px); background: #000; }
-        .ar-instructions { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 8px 15px; border-radius: 20px; font-size: 12px; pointer-events: none; z-index: 10; border: 1px solid #444; text-align: center; }
+        #tab-view { height: calc(100% - 120px); background: #000; }
+        .ar-instructions { position: absolute; top: 75px; left: 50%; transform: translateX(-50%); background: rgba(12, 12, 14, 0.85); padding: 10px 20px; border-radius: 30px; font-size: 12px; pointer-events: none; z-index: 10; border: 1px solid #f1c40f; text-align: center; color: #fff; box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 85%; max-width: 400px; line-height: 1.4; }
+        
+        /* Счетчик находок */
+        .clue-counter { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); border: 1px solid #333; padding: 8px 15px; border-radius: 10px; z-index: 10; font-size: 13px; font-weight: bold; }
 
         /* Вкладка 2: Допрос */
-        #tab-suspects { padding: 20px; }
-        .suspect-row { background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
-        .dialogue-box { background: #1a1a1a; border: 1px solid #444; border-radius: 8px; padding: 15px; margin-top: 15px; display: none; }
-        .dialogue-text { font-style: italic; color: #bdc3c7; margin-bottom: 10px; }
-        .dialogue-options button { display: block; width: 100%; background: #2c3e50; border: none; color: white; padding: 8px; margin: 5px 0; border-radius: 4px; text-align: left; cursor: pointer; }
+        #tab-suspects { padding: 25px; background: #111116; height: 100%; }
+        .suspect-row { background: #16161e; padding: 18px; border-radius: 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #22222b; }
+        .suspect-info strong { color: #fff; font-size: 16px; }
+        .suspect-info small { color: #8a8a9e; }
+        .talk-btn { background: #f1c40f; color: #000; border: none; padding: 8px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .dialogue-box { background: #16161e; border: 1px solid #f1c40f; border-radius: 12px; padding: 20px; margin-top: 20px; display: none; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+        .dialogue-text { font-style: italic; color: #e0e0e0; margin-bottom: 15px; font-size: 15px; line-height: 1.4; background: #0c0c0e; padding: 12px; border-radius: 8px; border-left: 3px solid #f1c40f; }
+        .dialogue-options button { display: block; width: 100%; background: #22222b; border: 1px solid #333344; color: white; padding: 12px; margin: 8px 0; border-radius: 8px; text-align: left; cursor: pointer; transition: 0.2s; font-size: 14px; }
+        .dialogue-options button:hover { background: #2c2c38; }
 
         /* Вкладка 3: Обвинение */
-        #tab-accuse { padding: 20px; text-align: center; }
-        .accuse-card { background: #2c3e50; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 2px solid transparent; cursor: pointer; }
-        .accuse-card.selected { border-color: #e74c3c; background: #3c2c2c; }
-        .btn-confirm { background: #e74c3c; color: white; border: none; width: 100%; padding: 15px; font-size: 18px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        #tab-accuse { padding: 25px; text-align: center; background: #111116; height: 100%; }
+        .accuse-card { background: #16161e; padding: 20px; border-radius: 14px; margin-bottom: 15px; border: 2px solid #22222b; cursor: pointer; text-align: left; transition: 0.2s; }
+        .accuse-card h4 { color: #fff; margin-bottom: 5px; }
+        .accuse-card.selected { border-color: #e74c3c; background: #251818; }
+        .btn-confirm { background: #e74c3c; color: white; border: none; width: 100%; padding: 16px; font-size: 16px; border-radius: 12px; font-weight: bold; cursor: pointer; margin-top: 15px; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3); }
 
         /* Нижнее меню вкладок */
-        .bottom-nav { height: 60px; background: #1a1a1a; border-top: 1px solid #333; display: flex; z-index: 10; }
-        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: none; border: none; color: #888; font-size: 12px; cursor: pointer; }
-        .nav-item.active { color: #f1c40f; background: #222; }
-        .nav-icon { font-size: 20px; margin-bottom: 2px; }
+        .bottom-nav { height: 60px; background: #111116; border-top: 1px solid #22222b; display: flex; z-index: 10; }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: none; border: none; color: #6c6c80; font-size: 11px; cursor: pointer; font-weight: 500; }
+        .nav-item.active { color: #f1c40f; background: #16161e; font-weight: bold; }
+        .nav-icon { font-size: 22px; margin-bottom: 2px; }
 
-        /* Поп-ап результатов */
-        #result-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; }
-        .result-title { font-size: 28px; margin-bottom: 20px; font-weight: bold; }
+        /* Экран результатов */
+        #result-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(6, 6, 8, 0.98); z-index: 100; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; }
+        .result-title { font-size: 30px; margin-bottom: 20px; font-weight: 900; letter-spacing: 1px; }
     </style>
 </head>
 <body>
 
+    <!-- ЭКРАН 1: ГЛАВНОЕ МЕНЮ -->
     <div id="main-menu">
         <h1 class="menu-title">АРХИВ ДЕТЕКТИВА</h1>
-        <div class="cases-grid" id="cases-grid">
-            </div>
+        <div class="cases-grid" id="cases-grid"></div>
     </div>
 
+    <!-- ЭКРАН 2: ИГРОВОЙ ПРОЦЕСС -->
     <div id="game-screen">
         <div class="top-bar">
-            <button class="back-btn" onclick="goBackToMenu()">← Меню</button>
-            <span id="case-header-title" style="font-weight: bold;">Дело №1</span>
-            <div style="width: 50px;"></div>
+            <button class="back-btn" onclick="goBackToMenu()">← Назад</button>
+            <span id="case-header-title" style="font-weight: bold; color: #fff;">Дело №1</span>
+            <div style="width: 70px;"></div>
         </div>
 
+        <!-- ВКЛАДКА 1: КИНЕМАТОГРАФИЧНЫЙ ОСМОТР МЕСТА ПРЕСТУПЛЕНИЯ -->
         <div id="tab-view" class="tab-content active-tab">
-            <div class="ar-instructions">Поворачивайте телефон, двигайте пальцем или мышкой,<br>чтобы найти улику. Тапните по ней!</div>
+            <div class="ar-instructions">Тащите пальцем/мышкой для обзора комнаты.<br>Внимательно ищите 3 спрятанные улики!</div>
+            <div class="clue-counter">Улики: <span id="clue-score">0</span> / 3</div>
             
+            <!-- Сцена A-Frame -->
             <a-scene embedded vr-mode-ui="enabled: false" loading-screen="enabled: false">
-                <a-sky color="#2c3e50" src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/cubes.jpg"></a-sky>
+                <!-- Качественный готический фон комнаты (каменные блоки) -->
+                <a-sky color="#1a1a24" src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/seis.jpg"></a-sky>
                 
-                <a-entity id="interactive-clue" position="0 1 -3" class="raycastable"
-                          geometry="primitive: cone; radiusBottom: 0.3; radiusTop: 0.5; height: 0.8" 
-                          material="color: #f1c40f; metalness: 0.8; roughness: 0.2"
-                          onclick="findClue()">
-                    <a-text value="КУБОК" align="center" position="0 0.8 0" scale="1.5 1.5 1.5" color="#fff"></a-text>
+                <!-- КИНЕМАТОГРАФИЧНОЕ ОСВЕЩЕНИЕ (Создает тени и объем) -->
+                <a-entity light="type: ambient; color: #445577; intensity: 0.6"></a-entity>
+                <a-entity light="type: directional; color: #ffdfa0; intensity: 0.8; castShadow: true" position="2 4 1"></a-entity>
+
+                <!-- ОКРУЖЕНИЕ: СТОЛЫ, БОЧКИ И ЯЩИКИ ДЛЯ ОРГАНИЧНОГО РАЗМЕЩЕНИЯ УЛИК -->
+                <!-- Бочка слева -->
+                <a-entity geometry="primitive: cylinder; radius: 0.4; height: 0.9" material="color: #5c4033; roughness: 0.8" position="-1.5 0.45 -3"></a-entity>
+                <!-- Стол-ящик справа -->
+                <a-entity geometry="primitive: box; width: 0.8; height: 0.8; depth: 0.8" material="color: #3d2b1f; roughness: 0.9" position="1.2 0.4 -2" rotation="0 15 0"></a-entity>
+                <!-- Каменный пол -->
+                <a-entity geometry="primitive: plane; width: 20; height: 20" rotation="-90 0 0" material="color: #222; roughness: 0.5" position="0 0 0"></a-entity>
+
+                <!-- УЛИКА 1: ТОТ САМЫЙ ЗОЛОТОЙ КУБОК (Лежит на бочке слева) -->
+                <a-entity id="clue-cup" position="-1.5 1.05 -3" class="raycastable" onclick="findParticularClue('cup')">
+                    <a-entity geometry="primitive: cone; radiusBottom: 0.12; radiusTop: 0.2; height: 0.35" material="color: #f1c40f; metalness: 0.9; roughness: 0.1"></a-entity>
+                    <a-entity geometry="primitive: torus; radius: 0.12; radiusTubular: 0.02" material="color: #f1c40f; metalness: 0.9" position="0 0.1 0" rotation="90 0 0"></a-entity>
+                    <a-text value="КУБОК" align="center" position="0 0.4 0" scale="1 1 1" color="#f1c40f" visible="false" id="lbl-cup"></a-text>
                 </a-entity>
 
-                <a-entity id="cameraRig">
-                    <a-entity camera id="cam" look-controls="magicWindowTrackingEnabled: true; touchEnabled: true" wasd-controls position="0 1.6 0">
-                        <a-cursor color="#f1c40f" raycaster="objects: .raycastable"></a-cursor>
+                <!-- УЛИКА 2: СЛОМАННЫЙ КИНЖАЛ КУЗНЕЦА (Лежит на ящике справа) -->
+                <a-entity id="clue-dagger" position="1.2 0.85 -2" rotation="90 45 0" class="raycastable" onclick="findParticularClue('dagger')">
+                    <!-- Лезвие -->
+                    <a-entity geometry="primitive: cone; radiusBottom: 0.04; radiusTop: 0.001; height: 0.3" material="color: #b0b5b8; metalness: 0.9; roughness: 0.2"></a-entity>
+                    <!-- Рукоять -->
+                    <a-entity geometry="primitive: cylinder; radius: 0.02; height: 0.12" material="color: #4a2711; roughness: 0.6" position="0 -0.2 0"></a-entity>
+                    <a-text value="КИНЖАЛ" align="center" position="0 0.4 0" scale="1 1 1" color="#e74c3c" visible="false" id="lbl-dagger" rotation="-90 -45 0"></a-text>
+                </a-entity>
+
+                <!-- УЛИКА 3: СТАЛЬНАЯ ОТМЫЧКА ВОРУЖКИ (Валяется брошенной в центре на полу) -->
+                <a-entity id="clue-lockpick" position="-0.2 0.05 -1.5" rotation="90 90 0" class="raycastable" onclick="findParticularClue('lockpick')">
+                    <a-entity geometry="primitive: torus; radius: 0.04; radiusTubular: 0.008; arc: 270" material="color: #555; metalness: 0.8" position="0 0.15 0"></a-entity>
+                    <a-entity geometry="primitive: cylinder; radius: 0.006; height: 0.2" material="color: #555; metalness: 0.8"></a-entity>
+                    <a-text value="ОТМЫЧКА" align="center" position="0 0.3 0" scale="1 1 1" color="#3498db" visible="false" id="lbl-lockpick" rotation="-90 -90 0"></a-text>
+                </a-entity>
+
+                <!-- УНИВЕРСАЛЬНАЯ СИСТЕМА КАМЕРЫ (Крутится везде без багов) -->
+                <a-entity id="cameraRig" rotation="0 0 0">
+                    <a-entity camera id="main-camera" position="0 1.5 0" look-controls="enabled: false">
+                        <!-- Прицел детектива для точного наведения на мелкие улики -->
+                        <a-cursor color="#f1c40f" scale="1.2 1.2 1.2" raycaster="objects: .raycastable"></a-cursor>
                     </a-entity>
                 </a-entity>
             </a-scene>
         </div>
 
+        <!-- ВКЛАДКА 2: ДОПРОС ПОДОЗРЕВАЕМЫХ -->
         <div id="tab-suspects" class="tab-content">
-            <h3>Подозреваемые на месте преступления:</h3>
-            <br>
+            <h3 style="color:#fff; margin-bottom:15px;">Протокол допроса лиц:</h3>
             <div class="suspect-row">
-                <div><strong>Кузнец Бьерн</strong><br><small>Был у ворот замка</small></div>
-                <button class="action-btn" style="padding: 5px 10px;" onclick="talkTo('smith')">Опросить</button>
+                <div class="suspect-info"><strong>Кузнец Бьерн</strong><br><small>Владелец городской кузницы</small></div>
+                <button class="talk-btn" onclick="talkTo('smith')">Допросить</button>
             </div>
             <div class="suspect-row">
-                <div><strong>Леди Элеонора</strong><br><small>Владелица кубка</small></div>
-                <button class="action-btn" style="padding: 5px 10px;" onclick="talkTo('lady')">Опросить</button>
+                <div class="suspect-info"><strong>Леди Элеонора</strong><br><small>Потерпевшая графиня</small></div>
+                <button class="talk-btn" onclick="talkTo('lady')">Допросить</button>
             </div>
 
             <div class="dialogue-box" id="d-box">
-                <h4 id="d-name">Имя</h4>
-                <p class="dialogue-text" id="d-text">"Что вам нужно, шериф?"</p>
-                <div class="dialogue-options" id="d-options">
-                    </div>
+                <h4 id="d-name" style="color:#f1c40f; margin-bottom:10px;">Имя</h4>
+                <p class="dialogue-text" id="d-text">...</p>
+                <div class="dialogue-options" id="d-options"></div>
             </div>
         </div>
 
+        <!-- ВКЛАДКА 3: ОБВИНЕНИЕ -->
         <div id="tab-accuse" class="tab-content">
-            <h3>Внимание! Кого вы официально обвиняете?</h3>
-            <p style="color: #888; font-size: 13px; margin: 10px 0 20px 0;">У вас только одна попытка восстановить справедливость.</p>
+            <h3 style="color:#fff;">Вынесение окончательного приговора</h3>
+            <p style="color: #8a8a9e; font-size: 13px; margin: 10px 0 25px 0;">На основе собранного пула улик укажите на истинного преступника.</p>
             
             <div class="accuse-card" id="acc-smith" onclick="selectToAccuse('smith')">
                 <h4>Кузнец Бьерн</h4>
-                <p style="font-size: 12px; opacity: 0.7; margin-top: 5px;">Подозревается в краже золота из-за долгов синдиката.</p>
+                <p style="font-size: 12px; color: #a0a0b0; margin-top: 5px;">Имеет мотив из-за долгов. Орудие взлома и кубок прямо указывают на кузнечное ремесло.</p>
             </div>
             <div class="accuse-card" id="acc-lady" onclick="selectToAccuse('lady')">
                 <h4>Леди Элеонора</h4>
-                <p style="font-size: 12px; opacity: 0.7; margin-top: 5px;">Возможно, инсценировала ограбление ради страховки.</p>
+                <p style="font-size: 12px; color: #a0a0b0; margin-top: 5px;">Могла инсценировать налет ради сокрытия растраты семейной казны.</p>
             </div>
 
-            <button class="btn-confirm" onclick="finalAccuse()">ВЫНЕСТИ ВЕРДИКТ</button>
+            <button class="btn-confirm" onclick="finalAccuse()">ОБЪЯВИТЬ ВЕРДИКТ В СУДЕ</button>
         </div>
 
+        <!-- НИЖНЯЯ НАВИГАЦИЯ ПО ВКЛАДКАМ -->
         <div class="bottom-nav">
             <button class="nav-item active" id="btn-tab-view" onclick="switchTab('tab-view')">
-                <span class="nav-icon">👁️</span><span>Осмотр AR</span>
+                <span class="nav-icon">👁️</span><span>Осмотр места</span>
             </button>
             <button class="nav-item" id="btn-tab-suspects" onclick="switchTab('tab-suspects')">
                 <span class="nav-icon">💬</span><span>Допрос</span>
@@ -143,20 +188,21 @@
         </div>
     </div>
 
+    <!-- ЭКРАН РЕЗУЛЬТАТОВ -->
     <div id="result-screen">
         <div class="result-title" id="res-title">ПОБЕДА!</div>
-        <p id="res-desc" style="margin-bottom: 30px; line-height: 1.5; color: #bdc3c7;"></p>
-        <button class="action-btn" id="res-btn" style="padding: 15px 40px; font-size: 16px; border-radius: 5px;" onclick="closeResult()">Далее</button>
+        <p id="res-desc" style="margin-bottom: 35px; line-height: 1.6; color: #bdc3c7; max-width: 50px0px;"></p>
+        <button class="talk-btn" style="padding: 15px 50px; font-size: 16px; border-radius: 10px;" onclick="closeResult()">Вернуться в архив</button>
     </div>
 
     <script>
-        // Глобальный прогресс игрока (текущий открытый уровень)
         let currentUnlockedCase = 1;
         let activeCaseId = 1;
-        let clueFound = false;
         let selectedSuspect = null;
 
-        // База данных 8 заданий
+        // Трекер найденных улик в текущей сессии
+        let foundClues = { cup: false, dagger: false, lockpick: false };
+
         const casesData = [
             { id: 1, title: "Похищение кубка", icon: "🏆", desc: "Из покоев пропала реликвия." },
             { id: 2, title: "Черный металл", icon: "⚔️", desc: "Загадка подпольной кузницы." },
@@ -168,7 +214,43 @@
             { id: 8, title: "Королевский заговор", icon: "👑", desc: "Финальное расследование." }
         ];
 
-        // Инициализация сетки заданий в меню
+        // 100% НАДЕЖНЫЙ СКРИПТ ВРАЩЕНИЯ КАМЕРЫ ДЛЯ ЛЮБЫХ СМАРТФОНОВ (ОБХОД БЛОКИРОВОК БРАУЗЕРА)
+        const cameraRig = document.getElementById('cameraRig');
+        let startX = 0, startY = 0;
+        let currentRotationX = 0, currentRotationY = 0;
+
+        // Обработка мыши (ПК) и пальцев (смартфоны)
+        const handleInteractionStart = (e) => {
+            startX = e.touches ? e.touches[0].clientX : e.clientX;
+            startY = e.touches ? e.touches[0].clientY : e.clientY;
+        };
+
+        const handleInteractionMove = (e) => {
+            if (document.getElementById('tab-view').classList.contains('active-tab')) {
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                // Рассчитываем сдвиг (чувствительность)
+                let deltaX = (clientX - startX) * 0.25;
+                let deltaY = (clientY - startY) * 0.25;
+
+                currentRotationY += deltaX;
+                currentRotationX = Math.max(-60, Math.min(60, currentRotationX - deltaY)); // Ограничение взгляда вверх/вниз
+
+                cameraRig.setAttribute('rotation', `${currentRotationX} ${currentRotationY} 0`);
+
+                startX = clientX;
+                startY = clientY;
+            }
+        };
+
+        // Навешиваем слушатели событий на контейнер 3D зоны
+        const viewContainer = document.getElementById('tab-view');
+        viewContainer.addEventListener('mousedown', handleInteractionStart);
+        viewContainer.addEventListener('mousemove', (e) => { if(e.buttons === 1) handleInteractionMove(e); });
+        viewContainer.addEventListener('touchstart', handleInteractionStart, {passive: true});
+        viewContainer.addEventListener('touchmove', handleInteractionMove, {passive: true});
+
         function renderMenu() {
             const grid = document.getElementById('cases-grid');
             grid.innerHTML = '';
@@ -179,64 +261,71 @@
                 
                 card.innerHTML = `
                     <div class="case-icon">${isLocked ? '🔒' : c.icon}</div>
-                    <div style="font-weight:bold; font-size:14px;">${c.title}</div>
-                    <div style="font-size:11px; opacity:0.6; margin-top:5px;">${c.desc}</div>
+                    <div style="font-weight:bold; font-size:14px; color:#fff;">${c.title}</div>
+                    <div style="font-size:11px; color:#8a8a9e; margin-top:5px;">${c.desc}</div>
                     ${isLocked ? '<div class="lock-icon">🔒</div>' : ''}
                 `;
-                if (!isLocked) {
-                    card.onclick = () => startCase(c.id);
-                }
+                if (!isLocked) card.onclick = () => startCase(c.id);
                 grid.appendChild(card);
             });
         }
 
-        // Запуск дела
         function startCase(id) {
             activeCaseId = id;
-            clueFound = false;
             selectedSuspect = null;
+            foundClues = { cup: false, dagger: false, lockpick: false };
+            updateClueUI();
+
             document.getElementById('case-header-title').innerText = `Дело №${id}: ${casesData[id-1].title}`;
             document.getElementById('main-menu').style.display = 'none';
             document.getElementById('game-screen').style.display = 'flex';
             
-            // Сбрасываем интерактивную улику
-            const clueEl = document.getElementById('interactive-clue');
-            if(clueEl) clueEl.setAttribute('visible', 'true');
+            // Восстанавливаем видимость улик в сцене
+            ['cup', 'dagger', 'lockpick'].forEach(type => {
+                document.getElementById(`clue-${type}`).setAttribute('visible', 'true');
+                document.getElementById(`lbl-${type}`).setAttribute('visible', 'false');
+            });
+
+            // Сброс положения камеры при старте уровня
+            currentRotationX = 0; currentRotationY = 0;
+            cameraRig.setAttribute('rotation', '0 0 0');
             
             switchTab('tab-view');
             document.getElementById('d-box').style.display = 'none';
             document.querySelectorAll('.accuse-card').forEach(c => c.classList.remove('selected'));
         }
 
-        // Выход обратно в меню
-        function goBackToMenu() {
-            document.getElementById('game-screen').style.display = 'none';
-            document.getElementById('main-menu').style.display = 'flex';
-            renderMenu();
+        function findParticularClue(type) {
+            if (foundClues[type]) return; // Уже найдено
+
+            foundClues[type] = true;
+            document.getElementById(`lbl-${type}`).setAttribute('visible', 'true');
+            updateClueUI();
+
+            let alerts = {
+                cup: "🏆 Вы нашли Золотой Кубок Леди Элеоноры! Странно, он спрятан за бочкой в углу...",
+                dagger: "⚔️ Обнаружен обломок кинжала со следами копоти! Такой металл используют только в местной кузнице.",
+                lockpick: "⚙️ На полу лежит профессиональная воровская отмычка. Замки вскрывал мастер."
+            };
+            alert(alerts[type]);
         }
 
-        // Переключение вкладок внутри дела
+        function updateClueUI() {
+            let total = Object.values(foundClues).filter(Boolean).length;
+            document.getElementById('clue-score').innerText = total;
+        }
+
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active-tab'));
             document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
-            
             document.getElementById(tabId).classList.add('active-tab');
             document.getElementById(`btn-${tabId}`).classList.add('active');
 
-            // Принудительно заставляем A-Frame обновить размер холста при переключении
             if (tabId === 'tab-view') {
-                window.dispatchEvent(new Event('resize'));
+                setTimeout(() => window.dispatchEvent(new Event('resize')), 100);
             }
         }
 
-        // Логика Осмотра: игрок кликнул по улике
-        function findClue() {
-            clueFound = true;
-            document.getElementById('interactive-clue').setAttribute('visible', 'false');
-            alert("🔍 Вы нашли главную улику: Золотой кубок! На его основании выгравировано клеймо кузницы. Теперь можно перейти во вкладку «Допрос».");
-        }
-
-        // Логика Допроса
         function talkTo(person) {
             const dBox = document.getElementById('d-box');
             const dName = document.getElementById('d-name');
@@ -246,36 +335,47 @@
             dBox.style.display = 'block';
             dOptions.innerHTML = '';
 
+            let cluesCount = Object.values(foundClues).filter(Boolean).length;
+
             if (person === 'smith') {
                 dName.innerText = "Кузнец Бьерн";
-                dText.innerText = '"Я ничего не брал, шериф! Весь день ковал подковы."';
+                dText.innerText = '"Клянусь молотом, я мирный ремесленник, шериф. Зачем вы ищете меня?"';
                 
-                let btn1 = document.createElement('button');
-                btn1.innerText = "Где вы были в 8 вечера?";
-                btn1.onclick = () => { dText.innerText = '"Я же говорю, у себя в кузнице. Спросите стражников!"'; };
-                dOptions.appendChild(btn1);
+                let q1 = document.createElement('button');
+                q1.innerText = "Что вы делали этой ночью?";
+                q1.onclick = () => { dText.innerText = '"Переплавлял старый железный лом у себя в мастерской до рассвета."'; };
+                dOptions.appendChild(q1);
 
-                if (clueFound) {
-                    let btnClue = document.createElement('button');
-                    btnClue.innerText = "⚠️ [Предъявить Кубок] На кубке ваше клеймо!";
-                    btnClue.style.background = "#d35400";
-                    btnClue.onclick = () => { 
-                        dText.innerText = '"Ладно! Признаю... Это я его вынес, чтобы расплатиться по долгам за металл... Не куйте меня в кандалы!"'; 
+                if (foundClues.dagger) {
+                    let q2 = document.createElement('button');
+                    q2.innerText = "⚠️ [Показать Кинжал] Этот обломок найден у замка. Марка стали ваша!";
+                    q2.style.borderColor = "#e74c3c";
+                    q2.onclick = () => { 
+                        dText.innerText = '"Проклятье... Ладно, это мой кинжал! Но я потерял его неделю назад! Его украли!"'; 
                     };
-                    dOptions.appendChild(btnClue);
+                    dOptions.appendChild(q2);
                 }
             } else if (person === 'lady') {
                 dName.innerText = "Леди Элеонора";
-                dText.innerText = '"Этот кубок — фамильная ценность! Найдите вора!"';
+                dText.innerText = '"Верните фамильное золото, шериф! Иначе я пожалуюсь королю!"';
                 
-                let btn1 = document.createElement('button');
-                btn1.innerText = "Кого вы подозреваете?";
-                btn1.onclick = () => { dText.innerText = '"Бьерн крутился у замка слишком долго в последнее время..."'; };
-                dOptions.appendChild(btn1);
+                let q1 = document.createElement('button');
+                q1.innerText = "Кто знал, где хранится кубок?";
+                q1.onclick = () => { dText.innerText = '"Только я и моя личная прислуга. Но замки выбиты силой!"'; };
+                dOptions.appendChild(q1);
+
+                if (foundClues.lockpick) {
+                    let q2 = document.createElement('button');
+                    q2.innerText = "⚠️ [Показать Отмычку] Замок открыли аккуратно, а не ломали.";
+                    q2.style.borderColor = "#3498db";
+                    q2.onclick = () => { 
+                        dText.innerText = '"Что? Отмычка?! Хотите сказать... вор открыл дверь ключом-дубликатом или отмычкой, а кузнец просто инсценировал погром?"'; 
+                    };
+                    dOptions.appendChild(q2);
+                }
             }
         }
 
-        // Логика Обвинения
         function selectToAccuse(person) {
             selectedSuspect = person;
             document.querySelectorAll('.accuse-card').forEach(c => c.classList.remove('selected'));
@@ -284,34 +384,40 @@
 
         function finalAccuse() {
             if(!selectedSuspect) {
-                alert("Выберите подозреваемого перед вынесением обвинения!");
+                alert("Выберите виновного для отправки дела в суд!");
                 return;
             }
 
             const resScreen = document.getElementById('result-screen');
             const resTitle = document.getElementById('res-title');
             const resDesc = document.getElementById('res-desc');
+            
+            let totalClues = Object.values(foundClues).filter(Boolean).length;
 
-            if(selectedSuspect === 'smith' && clueFound) {
-                resTitle.innerText = "🏆 ДЕЛО РАСКРЫТО!";
+            if(selectedSuspect === 'smith' && totalClues === 3) {
+                resTitle.innerText = "⚖️ ПРАВОСУДИЕ ТОРЖЕСТВУЕТ!";
                 resTitle.style.color = "#27ae60";
-                resDesc.innerText = "Великолепная работа! Опираясь на найденный кубок и его клеймо, вы прижали Кузнеца Бьерна к стене, и он во всем сознался. Королевство спит спокойно. Вам доступно следующее расследование!";
-                
-                if(activeCaseId === currentUnlockedCase && currentUnlockedCase < 8) {
-                    currentUnlockedCase++;
-                }
+                resDesc.innerText = "Блестящее расследование! Вы нашли все 3 скрытые улики (Кубок, Кинжал и Отмычку). Вы доказали, что Кузнец Бьерн использовал отмычку для бесшумного проникновения, а затем подбросил сломанный нож, чтобы запутать стражу. Он во всем признался! Следующее архивное дело разблокировано.";
+                if(activeCaseId === currentUnlockedCase && currentUnlockedCase < 8) currentUnlockedCase++;
             } else {
-                resTitle.innerText = "❌ ОШИБКА ДЕТЕКТИВА";
+                resTitle.innerText = "❌ ДЕЛО ПРОВАЛЕНО";
                 resTitle.style.color = "#e74c3c";
-                resDesc.innerText = "Увы! Недостаточно улик или вы указали на невиновного. Преступник запутал следы и сбежал из города. Попробуйте осмотреть комнату еще раз и провести допрос заново.";
+                resDesc.innerText = totalClues < 3 
+                    ? "Вам не хватает улик для официального обвинения! Судья отклонил иск. Вернитесь на место преступления и найдите все 3 зацепки."
+                    : "Вы обвинили не того человека. Настоящий преступник уничтожил бумаги и скрылся из королевства. Попробуйте еще раз!";
             }
-
             resScreen.style.display = 'flex';
         }
 
         function closeResult() {
             document.getElementById('result-screen').style.display = 'none';
             goBackToMenu();
+        }
+
+        function goBackToMenu() {
+            document.getElementById('game-screen').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'flex';
+            renderMenu();
         }
 
         renderMenu();
