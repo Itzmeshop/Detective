@@ -1,428 +1,338 @@
+Вот готовый, полностью рабочий каркас (архитектура) для твоей AR-детективной игры.
+
+Поскольку для полноценного 3D-осмотра комнаты через гироскоп телефона на чистом CSS писать очень сложно, я подключил прямо в файл официальную и легкую библиотеку A-Frame (это стандарт для WebVR/AR в браузере). Она позволяет создать полноценную 360-градусную комнату всего парой строчек кода, и она автоматически подхватывает гироскоп смартфона, когда ты поворачиваешься!
+
+В коде реализовано:
+
+Главное меню на 8 дел (доступно пока только первое, остальные откроются по цепочке).
+
+Экран дела с тремя переключаемыми вкладками: «Осмотр», «Допрос» и «Обвинение».
+
+Виртуальная 3D-комната (вместо реальных фото я сделал красивую сетку-заглушку, внутри которой висит улика — золотой кубок 🏆. Если покрутить телефон или потащить мыщкой на ПК, можно осмотреться вокруг).
+
+Система диалогов и логика победы/поражения.
+
+Скопируй этот код в файл detective.html и запусти на компьютере или скинь на телефон:
+
+HTML
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web-OS Detective: След в Сети</title>
+    <title>AR Детектив: Восемь Дел</title>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+        body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #121212; color: #e0e0e0; overflow: hidden; }
+        
+        /* ГЛАВНОЕ МЕНЮ */
+        #main-menu { padding: 20px; display: flex; flex-direction: column; height: 100%; overflow-y: auto; }
+        .menu-title { text-align: center; margin: 20px 0; font-size: 24px; color: #f1c40f; letter-spacing: 2px; }
+        .cases-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; max-width: 600px; margin: 0 auto; }
+        .case-card { background: #1e1e1e; border: 2px solid #333; border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: 0.2s; position: relative; min-height: 120px; display: flex; flex-direction: column; justify-content: center; }
+        .case-card.active { border-color: #f1c40f; box-shadow: 0 0 10px rgba(241, 196, 15, 0.2); }
+        .case-card.locked { opacity: 0.4; cursor: not-allowed; }
+        .case-icon { font-size: 32px; margin-bottom: 5px; }
+        .lock-icon { position: absolute; top: 10px; right: 10px; font-size: 16px; }
 
-        body, html {
-            width: 100%;
-            height: 100%;
-            font-family: 'Courier New', Courier, monospace;
-            overflow: hidden;
-            background: #1a1a1a;
-        }
+        /* ИГРОВОЙ ЭКРАН ДЕЛА */
+        #game-screen { display: none; width: 100%; height: 100%; flex-direction: column; position: relative; }
+        
+        /* Верхняя панель */
+        .top-bar { height: 50px; background: #1a1a1a; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid #333; z-index: 10; }
+        .back-btn { background: none; border: none; color: #f1c40f; font-size: 16px; cursor: pointer; }
 
-        /* Рабочий стол */
-        .desktop {
-            width: 100%;
-            height: calc(100% - 40px);
-            background: radial-gradient(circle, #2c3e50 0%, #0f171e 100%);
-            position: relative;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            align-content: flex-start;
-            flex-wrap: wrap;
-        }
+        /* Контент вкладок */
+        .tab-content { flex-grow: 1; position: relative; display: none; overflow-y: auto; height: calc(100% - 110px); }
+        .tab-content.active-tab { display: block; }
 
-        /* Иконки на рабочем столе */
-        .shortcut {
-            width: 90px;
-            height: 90px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            cursor: pointer;
-            color: #ffffff;
-            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
-            border-radius: 4px;
-            transition: background 0.2s;
-        }
+        /* Вкладка 1: AR Осмотр */
+        #tab-view { height: calc(100% - 110px); background: #000; }
+        .ar-instructions { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); padding: 8px 15px; border-radius: 20px; font-size: 12px; pointer-events: none; z-index: 10; border: 1px solid #444; text-align: center; }
 
-        .shortcut:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
+        /* Вкладка 2: Допрос */
+        #tab-suspects { padding: 20px; }
+        .suspect-row { background: #1e1e1e; padding: 15px; border-radius: 8px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
+        .dialogue-box { background: #1a1a1a; border: 1px solid #444; border-radius: 8px; padding: 15px; margin-top: 15px; display: none; }
+        .dialogue-text { font-style: italic; color: #bdc3c7; margin-bottom: 10px; }
+        .dialogue-options button { display: block; width: 100%; background: #2c3e50; border: none; color: white; padding: 8px; margin: 5px 0; border-radius: 4px; text-align: left; cursor: pointer; }
 
-        .shortcut-icon {
-            font-size: 40px;
-            margin-bottom: 5px;
-        }
+        /* Вкладка 3: Обвинение */
+        #tab-accuse { padding: 20px; text-align: center; }
+        .accuse-card { background: #2c3e50; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 2px solid transparent; cursor: pointer; }
+        .accuse-card.selected { border-color: #e74c3c; background: #3c2c2c; }
+        .btn-confirm { background: #e74c3c; color: white; border: none; width: 100%; padding: 15px; font-size: 18px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
 
-        .shortcut-label {
-            font-size: 12px;
-            word-break: break-word;
-        }
+        /* Нижнее меню вкладок */
+        .bottom-nav { height: 60px; background: #1a1a1a; border-top: 1px solid #333; display: flex; z-index: 10; }
+        .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: none; border: none; color: #888; font-size: 12px; cursor: pointer; }
+        .nav-item.active { color: #f1c40f; background: #222; }
+        .nav-icon { font-size: 20px; margin-bottom: 2px; }
 
-        /* Окна приложений */
-        .window {
-            position: absolute;
-            width: 450px;
-            height: 350px;
-            background: #ffffff;
-            border: 2px solid #333;
-            box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
-            display: none;
-            flex-direction: column;
-            z-index: 10;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-
-        .window-header {
-            background: #333;
-            color: #fff;
-            padding: 8px 12px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: move;
-            font-weight: bold;
-        }
-
-        .window-title {
-            font-size: 14px;
-        }
-
-        .close-btn {
-            background: #e74c3c;
-            border: none;
-            color: white;
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 12px;
-            line-height: 20px;
-            text-align: center;
-        }
-
-        .close-btn:hover {
-            background: #c0392b;
-        }
-
-        .window-content {
-            padding: 15px;
-            flex-grow: 1;
-            overflow-y: auto;
-            color: #333;
-            font-size: 14px;
-            line-height: 1.4;
-        }
-
-        /* Специфический контент для окон */
-        .locked-content {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-        }
-
-        .input-field {
-            padding: 6px;
-            font-family: inherit;
-            border: 1px solid #ccc;
-            width: 80%;
-            text-align: center;
-        }
-
-        .action-btn {
-            padding: 6px 12px;
-            background: #27ae60;
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-family: inherit;
-        }
-
-        .action-btn:hover {
-            background: #219653;
-        }
-
-        /* Имитация Браузера */
-        .browser-bar {
-            background: #f1f1f1;
-            padding: 5px;
-            border-bottom: 1px solid #ccc;
-            display: flex;
-            gap: 5px;
-        }
-        .browser-input {
-            flex-grow: 1;
-            padding: 4px 8px;
-            font-family: inherit;
-            font-size: 12px;
-            border: 1px solid #ccc;
-        }
-        .browser-page {
-            padding: 10px;
-            background: #fff;
-            height: calc(100% - 35px);
-            overflow-y: auto;
-        }
-        .syndicate-site {
-            font-family: sans-serif;
-            color: #2c3e50;
-        }
-
-        /* Нижняя панель задач */
-        .taskbar {
-            width: 100%;
-            height: 40px;
-            background: #111;
-            border-top: 1px solid #333;
-            display: flex;
-            align-items: center;
-            padding: 0 15px;
-            color: #888;
-            font-size: 14px;
-            justify-content: space-between;
-            position: relative;
-            z-index: 100;
-        }
-
-        .system-status {
-            color: #27ae60;
-            font-weight: bold;
-            animation: blink 2s infinite;
-        }
-
-        @keyframes blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
+        /* Поп-ап результатов */
+        #result-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; }
+        .result-title { font-size: 28px; margin-bottom: 20px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="desktop" id="desktop">
-        
-        <div class="shortcut" onclick="openWindow('win-notes')">
-            <div class="shortcut-icon">📝</div>
-            <div class="shortcut-label">Заметки.txt</div>
-        </div>
-
-        <div class="shortcut" onclick="openWindow('win-archive')">
-            <div class="shortcut-icon">📁</div>
-            <div class="shortcut-label">Секретно</div>
-        </div>
-
-        <div class="shortcut" onclick="openWindow('win-browser')">
-            <div class="shortcut-icon">🌐</div>
-            <div class="shortcut-label">Браузер NetScape</div>
-        </div>
-
+    <div id="main-menu">
+        <h1 class="menu-title">АРХИВ ДЕТЕКТИВА</h1>
+        <div class="cases-grid" id="cases-grid">
+            </div>
     </div>
 
-    <div id="win-notes" class="window" style="top: 50px; left: 150px;">
-        <div class="window-header">
-            <span class="window-title">Блокнот - Заметки.txt</span>
-            <button class="close-btn" onclick="closeWindow('win-notes')">X</button>
+    <div id="game-screen">
+        <div class="top-bar">
+            <button class="back-btn" onclick="goBackToMenu()">← Меню</button>
+            <span id="case-header-title" style="font-weight: bold;">Дело №1</span>
+            <div style="width: 50px;"></div>
         </div>
-        <div class="window-content">
-            <p><strong>Запись от 14.10.2026:</strong></p>
-            <p>Они следят за мной. Я спрятал лог-файлы в секретную папку на этом столе.</p>
-            <p>Пароль сделал простой, чтобы не забыть — это <b>год основания нашего кузнечного синдиката</b>. (Подсказка: проверь историю компании, ну или просто вспомни <span style="color: #7f8c8d;">1984</span> год... Стоп, или это был год рождения?).</p>
+
+        <div id="tab-view" class="tab-content active-tab">
+            <div class="ar-instructions">Поворачивайте телефон или тяните пальцем,<br>чтобы найти улику. Тапните по ней!</div>
+            
+            <a-scene embedded vr-mode-ui="enabled: false" loading-screen="enabled: false">
+                <a-sky color="#2c3e50" src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/cubes.jpg"></a-sky>
+                
+                <a-entity id="interactive-clue" position="0 1 -4" class="raycastable"
+                          geometry="primitive: cone; radiusBottom: 0.3; radiusTop: 0.5; height: 0.8" 
+                          material="color: #f1c40f; metalness: 0.8; roughness: 0.2"
+                          onclick="findClue()">
+                    <a-text value="КУБОК" align="center" position="0 0.8 0" scale="1.5 1.5 1.5" color="#fff"></a-text>
+                </a-entity>
+
+                <a-entity camera look-controls>
+                    <a-cursor color="#f1c40f" raycaster="objects: .raycastable"></a-cursor>
+                </a-entity>
+            </a-scene>
+        </div>
+
+        <div id="tab-suspects" class="tab-content">
+            <h3>Подозреваемые на месте преступления:</h3>
             <br>
-            <p><i>Прим. детектива: Из переписки в секретной папке мы узнали кодовое слово. Но где сам план поставок? Нужно проверить историю посещений браузера или поискать сайт синдиката.</i></p>
-        </div>
-    </div>
-
-    <div id="win-archive" class="window" style="top: 100px; left: 250px;">
-        <div class="window-header">
-            <span class="window-title">Архиватор - Доступ ограничен</span>
-            <button class="close-btn" onclick="closeWindow('win-archive')">X</button>
-        </div>
-        <div class="window-content" id="archive-body">
-            <div class="locked-content" id="lock-screen">
-                <div>Внимание! Файл зашифрован.</div>
-                <input type="password" id="pass-input" class="input-field" placeholder="Введите пароль...">
-                <button class="action-btn" onclick="checkPassword()">Разблокировать</button>
-                <div id="error-msg" style="color: #e74c3c; font-size: 12px; display: none;">Неверный код доступа.</div>
+            <div class="suspect-row">
+                <div><strong>Кузнец Бьерн</strong><br><small>Был у ворот замка</small></div>
+                <button class="action-btn" style="padding: 5px 10px;" onclick="talkTo('smith')">Опросить</button>
             </div>
-            <div id="secret-content" style="display: none;">
-                <h3 style="color: #27ae60; margin-bottom: 10px;">ДОСТУП РАЗРЕШЕН</h3>
-                <p><b>Из переписки объекта:</b></p>
-                <p>"Золото доставлено на склад №4. Ключ у кузнеца. Кодовое слово: <span style="color: #e67e22; font-weight: bold;">Ржавчина</span>. Проверь статус отгрузки на нашем внутреннем сайте: <span style="color: #2980b9; font-weight: bold;">syndicate.local</span>"</p>
-            </div>
-        </div>
-    </div>
-
-    <div id="win-browser" class="window" style="top: 80px; left: 400px; width: 550px; height: 400px;">
-        <div class="window-header">
-            <span class="window-title">Браузер NetScape v1.0</span>
-            <button class="close-btn" onclick="closeWindow('win-browser')">X</button>
-        </div>
-        <div class="browser-bar">
-            <input type="text" id="url-field" class="browser-input" value="google.com" placeholder="Введите URL...">
-            <button class="action-btn" style="padding: 2px 10px; font-size: 12px;" onclick="navigateBrowser()">Перейти</button>
-        </div>
-        <div class="window-content" style="padding: 0; background: #eee;">
-            <div id="page-google" class="browser-page" style="display: block; text-align: center; padding-top: 50px;">
-                <h1 style="font-family: sans-serif; font-size: 36px; margin-bottom: 20px;"><span style="color:#4285F4">G</span><span style="color:#EA4335">o</span><span style="color:#FBBC05">o</span><span style="color:#4285F4">g</span><span style="color:#34A853">l</span><span style="color:#EA4335">e</span></h1>
-                <input type="text" class="input-field" style="width: 70%;" placeholder="Поиск в Интернете..." disabled value="Нет соединения с внешней сетью">
-                <p style="font-size: 11px; color: #777; margin-top: 10px;">Доступен только локальный прокси-сервер.</p>
+            <div class="suspect-row">
+                <div><strong>Леди Элеонора</strong><br><small>Владелица кубка</small></div>
+                <button class="action-btn" style="padding: 5px 10px;" onclick="talkTo('lady')">Опросить</button>
             </div>
 
-            <div id="page-syndicate" class="browser-page" style="display: none;">
-                <div class="syndicate-site">
-                    <div style="background: #2c3e50; color: white; padding: 10px; margin-bottom: 15px;">
-                        <h2>КУЗНЕЧНЫЙ СИНДИКАТ — ВНУТРЕННЯЯ СЕТЬ</h2>
+            <div class="dialogue-box" id="d-box">
+                <h4 id="d-name">Имя</h4>
+                <p class="dialogue-text" id="d-text">"Что вам нужно, шериф?"</p>
+                <div class="dialogue-options" id="d-options">
                     </div>
-                    <p>Добро пожаловать в панель мониторинга поставок драгоценных металлов.</p>
-                    <hr style="margin: 10px 0;">
-                    <h4>Форма проверки статуса груза:</h4>
-                    <br>
-                    <div style="display: flex; flex-direction: column; gap: 10px; max-width: 300px;">
-                        <input type="text" id="syndicate-keyword" class="input-field" style="text-align: left;" placeholder="Введите кодовое слово...">
-                        <button class="action-btn" onclick="checkSyndicateSite()">Запросить логи</button>
-                    </div>
-                    <div id="syndicate-result" style="margin-top: 15px; font-weight: bold;"></div>
-                </div>
+            </div>
+        </div>
+
+        <div id="tab-accuse" class="tab-content">
+            <h3>Внимание! Кого вы официально обвиняете?</h3>
+            <p style="color: #888; font-size: 13px; margin: 10px 0 20px 0;">У вас только одна попытка восстановить справедливость.</p>
+            
+            <div class="accuse-card" id="acc-smith" onclick="selectToAccuse('smith')">
+                <h4>Кузнец Бьерн</h4>
+                <p style="font-size: 12px; opacity: 0.7; margin-top: 5px;">Подозревается в краже золота из-за долгов синдиката.</p>
+            </div>
+            <div class="accuse-card" id="acc-lady" onclick="selectToAccuse('lady')">
+                <h4>Леди Элеонора</h4>
+                <p style="font-size: 12px; opacity: 0.7; margin-top: 5px;">Возможно, инсценировала ограбление ради страховки.</p>
             </div>
 
-            <div id="page-404" class="browser-page" style="display: none; padding: 30px; text-align: center;">
-                <h1 style="color: #c0392b;">404 Not Found</h1>
-                <p style="margin-top: 10px;">Сервер по данному адресу не отвечает или заблокирован брандмауэром.</p>
-            </div>
+            <button class="btn-confirm" onclick="finalAccuse()">ВЫНЕСТИ ВЕРДИКТ</button>
+        </div>
+
+        <div class="bottom-nav">
+            <button class="nav-item active" id="btn-tab-view" onclick="switchTab('tab-view')">
+                <span class="nav-icon">👁️</span><span>Осмотр AR</span>
+            </button>
+            <button class="nav-item" id="btn-tab-suspects" onclick="switchTab('tab-suspects')">
+                <span class="nav-icon">💬</span><span>Допрос</span>
+            </button>
+            <button class="nav-item" id="btn-tab-accuse" onclick="switchTab('tab-accuse')">
+                <span class="nav-icon">⚖️</span><span>Обвинение</span>
+            </button>
         </div>
     </div>
 
-    <div class="taskbar">
-        <div><span>Система: </span><span class="system-status">ONLINE (Бэкап_v4.2)</span></div>
-        <div id="clock">12:00</div>
+    <div id="result-screen" id="result-screen">
+        <div class="result-title" id="res-title">ПОБЕДА!</div>
+        <p id="res-desc" style="margin-bottom: 30px; line-height: 1.5; color: #bdc3c7;"></p>
+        <button class="action-btn" id="res-btn" style="padding: 15px 40px; font-size: 16px; border-radius: 5px;" onclick="closeResult()">Далее</button>
     </div>
 
     <script>
-        // Открытие окон
-        function openWindow(id) {
-            const win = document.getElementById(id);
-            win.style.display = 'flex';
-            bringToFront(win);
-        }
+        // Глобальный прогресс игрока (текущий открытый уровень)
+        let currentUnlockedCase = 1;
+        let activeCaseId = 1;
+        let clueFound = false;
+        let selectedSuspect = null;
 
-        // Закрытие окон
-        function closeWindow(id) {
-            document.getElementById(id).style.display = 'none';
-        }
+        // База данных 8 заданий
+        const casesData = [
+            { id: 1, title: "Похищение кубка", icon: "🏆", desc: "Из покоев пропала реликвия." },
+            { id: 2, title: "Черный металл", icon: "⚔️", desc: "Загадка подпольной кузницы." },
+            { id: 3, title: "Фальшивый след", icon: "👣", desc: "Улики ведут к невиновному." },
+            { id: 4, title: "Яд в бочке", icon: "🧪", desc: "Отравление на пиру." },
+            { id: 5, title: "Секретный чертеж", icon: "📜", desc: "Шпионаж в замке." },
+            { id: 6, title: "Контрабанда", icon: "⛵", desc: "Таинственный ночной корабль." },
+            { id: 7, title: "След ржавчины", icon: "⚙️", desc: "Механизм заклинило не просто так." },
+            { id: 8, title: "Королевский заговор", icon: "👑", desc: "Финальное расследование." }
+        ];
 
-        // Вариант 1: Логика проверки пароля к папке
-        function checkPassword() {
-            const input = document.getElementById('pass-input').value;
-            const error = document.getElementById('error-msg');
-            const lockScreen = document.getElementById('lock-screen');
-            const secretContent = document.getElementById('secret-content');
-
-            if (input === '1984') {
-                lockScreen.style.display = 'none';
-                secretContent.style.display = 'block';
-            } else {
-                error.style.display = 'block';
-            }
-        }
-
-        // Вариант 2: Логика работы браузера (переходы по сайтам)
-        function navigateBrowser() {
-            const url = document.getElementById('url-field').value.trim().toLowerCase();
-            
-            // Прячем все страницы браузера
-            document.getElementById('page-google').style.display = 'none';
-            document.getElementById('page-syndicate').style.display = 'none';
-            document.getElementById('page-404').style.display = 'none';
-
-            // Переключаем на нужную в зависимости от URL
-            if (url === 'syndicate.local') {
-                document.getElementById('page-syndicate').style.display = 'block';
-            } else if (url === 'google.com') {
-                document.getElementById('page-google').style.display = 'block';
-            } else {
-                document.getElementById('page-404').style.display = 'block';
-            }
-        }
-
-        // Вариант 2: Логика проверки кодового слова на сайте синдиката
-        function checkSyndicateSite() {
-            const keyword = document.getElementById('syndicate-keyword').value.trim().toLowerCase();
-            const resultDiv = document.getElementById('syndicate-result');
-
-            // Игрок должен ввести "Ржавчина" (которое нашел в Варианте 1)
-            if (keyword === 'ржавчина') {
-                resultDiv.style.color = '#27ae60';
-                resultDiv.innerHTML = `
-                    <p style="color: #27ae60">✓ КОД КОРРЕКТЕН. ИЗВЛЕЧЕНИЕ ЛОГА...</p>
-                    <p style="color: #333; font-weight: normal; margin-top: 10px; background: #fff; padding: 5px; border: 1px dashed #ccc;">
-                        "Контрабанда меди и золота запланирована на <b>пятницу, в 03:00 ночи</b>. Порт, док №9. При себе иметь поддельный пропуск."
-                    </p>
-                    <br>
-                    <p style="color: #2980b9;">🎉 Дело раскрыто! Вы связали улики из Блокнота, Папки и Браузера!</p>
+        // Инициализация сетки заданий в меню
+        function renderMenu() {
+            const grid = document.getElementById('cases-grid');
+            grid.innerHTML = '';
+            casesData.forEach(c => {
+                const isLocked = c.id > currentUnlockedCase;
+                const card = document.createElement('div');
+                card.className = `case-card ${isLocked ? 'locked' : 'active'}`;
+                if(!isLocked && c.id === currentUnlockedCase) card.classList.add('unlocked-anim');
+                
+                card.innerHTML = `
+                    <div class="case-icon">${isLocked ? '🔒' : c.icon}</div>
+                    <div style="font-weight:bold; font-size:14px;">${c.title}</div>
+                    <div style="font-size:11px; opacity:0.6; margin-top:5px;">${c.desc}</div>
+                    ${isLocked ? '<div class="lock-icon">🔒</div>' : ''}
                 `;
-            } else {
-                resultDiv.style.color = '#e74c3c';
-                resultDiv.innerText = "Ошибка: Неверное кодовое слово для доступа к логам.";
+                if (!isLocked) {
+                    card.onclick = () => startCase(c.id);
+                }
+                grid.appendChild(card);
+            });
+        }
+
+        // Запуск дела
+        function startCase(id) {
+            activeCaseId = id;
+            clueFound = false;
+            selectedSuspect = null;
+            document.getElementById('case-header-title').innerText = `Дело №${id}: ${casesData[id-1].title}`;
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'flex';
+            
+            // Сбрасываем интерактивную улику
+            const clueEl = document.getElementById('interactive-clue');
+            if(clueEl) clueEl.setAttribute('visible', 'true');
+            
+            switchTab('tab-view');
+            document.getElementById('d-box').style.display = 'none';
+            document.querySelectorAll('.accuse-card').forEach(c => c.classList.remove('selected'));
+        }
+
+        // Выход обратно в меню
+        function goBackToMenu() {
+            document.getElementById('game-screen').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'flex';
+            renderMenu();
+        }
+
+        // Переключение вкладок внутри дела
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active-tab'));
+            document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active-tab');
+            document.getElementById(`btn-${tabId}`).classList.add('active');
+        }
+
+        // Логика Осмотра: игрок кликнул по улике
+        function findClue() {
+            clueFound = true;
+            document.getElementById('interactive-clue').setAttribute('visible', 'false');
+            
+            alert("🔍 Вы нашли главную улику: Золотой кубок! На его основании выгравировано клеймо кузницы. Теперь можно допросить свидетелей.");
+        }
+
+        // Логика Допроса
+        function talkTo(person) {
+            const dBox = document.getElementById('d-box');
+            const dName = document.getElementById('d-name');
+            const dText = document.getElementById('d-text');
+            const dOptions = document.getElementById('d-options');
+            
+            dBox.style.display = 'block';
+            dOptions.innerHTML = '';
+
+            if (person === 'smith') {
+                dName.innerText = "Кузнец Бьерн";
+                dText.innerText = '"Я ничего не брал, шериф! Весь день ковал подковы."';
+                
+                // Опция 1: Обычный вопрос
+                let btn1 = document.createElement('button');
+                btn1.innerText = "Где вы были в 8 вечера?";
+                btn1.onclick = () => { dText.innerText = '"Я же говорю, у себя в кузнице. Спросите стражников!"'; };
+                dOptions.appendChild(btn1);
+
+                // Опция 2: Появляется только ЕСЛИ найдена улика
+                if (clueFound) {
+                    let btnClue = document.createElement('button');
+                    btnClue.innerText = "⚠️ [Предъявить Кубок] На кубке ваше клеймо!";
+                    btnClue.style.background = "#d35400";
+                    btnClue.onclick = () => { 
+                        dText.innerText = '"Ладно! Признаю... Это я его вынес, чтобы расплатиться по долгам за металл... Не губите!"'; 
+                    };
+                    dOptions.appendChild(btnClue);
+                }
+            } else if (person === 'lady') {
+                dName.innerText = "Леди Элеонора";
+                dText.innerText = '"Этот кубок — фамильная ценность! Найдите вора!"';
+                
+                let btn1 = document.createElement('button');
+                btn1.innerText = "Кого вы подозреваете?";
+                btn1.onclick = () => { dText.innerText = '"Бьерн крутился у замка слишком долго в последнее время..."'; };
+                dOptions.appendChild(btn1);
             }
         }
 
-        // Перетаскивание окон (Drag and Drop)
-        const windows = document.querySelectorAll('.window');
-        let activeWindow = null;
-        let zIndexCounter = 10;
-
-        windows.forEach(win => {
-            const header = win.querySelector('.window-header');
-            
-            win.addEventListener('mousedown', () => bringToFront(win));
-
-            header.addEventListener('mousedown', (e) => {
-                activeWindow = win;
-                let shiftX = e.clientX - win.getBoundingClientRect().left;
-                let shiftY = e.clientY - win.getBoundingClientRect().top;
-
-                function moveAt(pageX, pageY) {
-                    win.style.left = pageX - shiftX + 'px';
-                    win.style.top = pageY - shiftY + 'px';
-                }
-
-                function onMouseMove(e) {
-                    moveAt(e.clientX, e.clientY);
-                }
-
-                document.addEventListener('mousemove', onMouseMove);
-
-                document.onmouseup = function() {
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.onmouseup = null;
-                    activeWindow = null;
-                };
-            });
-
-            header.ondragstart = function() { return false; };
-        });
-
-        function bringToFront(win) {
-            zIndexCounter++;
-            win.style.zIndex = zIndexCounter;
+        // Логика Обвинения: выбор подозреваемого
+        function selectToAccuse(person) {
+            selectedSuspect = person;
+            document.querySelectorAll('.accuse-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById(`acc-${person}`).classList.add('selected');
         }
 
-        // Часы
-        function updateClock() {
-            const now = new Date();
-            const timeStr = now.toTimeString().substring(0, 5);
-            document.getElementById('clock').innerText = timeStr;
+        // Финальный вердикт
+        function finalAccuse() {
+            if(!selectedSuspect) {
+                alert("Выберите подозреваемого перед вынесением обвинения!");
+                return;
+            }
+
+            const resScreen = document.getElementById('result-screen');
+            const resTitle = document.getElementById('res-title');
+            const resDesc = document.getElementById('res-desc');
+
+            // Условие победы: Обвинен Кузнец И найдена улика
+            if(selectedSuspect === 'smith' && clueFound) {
+                resTitle.innerText = "🏆 ДЕЛО РАСКРЫТО!";
+                resTitle.style.color = "#27ae60";
+                resDesc.innerText = "Великолепная работа! Опираясь на найденный кубок и его клеймо, вы прижали Кузнеца Бьерна к стене, и он во всем сознался. Королевство спит спокойно. Вам доступно следующее расследование!";
+                
+                // Открываем следующее задание, если оно есть
+                if(activeCaseId === currentUnlockedCase && currentUnlockedCase < 8) {
+                    currentUnlockedCase++;
+                }
+            } else {
+                resTitle.innerText = "❌ ОШИБКА ДЕТЕКТИВА";
+                resTitle.style.color = "#e74c3c";
+                resDesc.innerText = "Увы! Недостаточно улик или вы указали на невиновного. Преступник запутал следы и сбежал из города. Попробуйте осмотреть комнату еще раз и провести допрос заново.";
+            }
+
+            resScreen.style.display = 'flex';
         }
-        setInterval(updateClock, 1000);
-        updateClock();
+
+        function closeResult() {
+            document.getElementById('result-screen').style.display = 'none';
+            goBackToMenu();
+        }
+
+        // Старт игры
+        renderMenu();
     </script>
 </body>
 </html>
