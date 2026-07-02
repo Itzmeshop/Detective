@@ -74,20 +74,22 @@
         </div>
 
         <div id="tab-view" class="tab-content active-tab">
-            <div class="ar-instructions">Поворачивайте телефон или тяните пальцем,<br>чтобы найти улику. Тапните по ней!</div>
+            <div class="ar-instructions">Поворачивайте телефон, двигайте пальцем или мышкой,<br>чтобы найти улику. Тапните по ней!</div>
             
             <a-scene embedded vr-mode-ui="enabled: false" loading-screen="enabled: false">
                 <a-sky color="#2c3e50" src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/cubes.jpg"></a-sky>
                 
-                <a-entity id="interactive-clue" position="0 1 -4" class="raycastable"
+                <a-entity id="interactive-clue" position="0 1 -3" class="raycastable"
                           geometry="primitive: cone; radiusBottom: 0.3; radiusTop: 0.5; height: 0.8" 
                           material="color: #f1c40f; metalness: 0.8; roughness: 0.2"
                           onclick="findClue()">
                     <a-text value="КУБОК" align="center" position="0 0.8 0" scale="1.5 1.5 1.5" color="#fff"></a-text>
                 </a-entity>
 
-                <a-entity camera look-controls>
-                    <a-cursor color="#f1c40f" raycaster="objects: .raycastable"></a-cursor>
+                <a-entity id="cameraRig">
+                    <a-entity camera id="cam" look-controls="magicWindowTrackingEnabled: true; touchEnabled: true" wasd-controls position="0 1.6 0">
+                        <a-cursor color="#f1c40f" raycaster="objects: .raycastable"></a-cursor>
+                    </a-entity>
                 </a-entity>
             </a-scene>
         </div>
@@ -141,7 +143,7 @@
         </div>
     </div>
 
-    <div id="result-screen" id="result-screen">
+    <div id="result-screen">
         <div class="result-title" id="res-title">ПОБЕДА!</div>
         <p id="res-desc" style="margin-bottom: 30px; line-height: 1.5; color: #bdc3c7;"></p>
         <button class="action-btn" id="res-btn" style="padding: 15px 40px; font-size: 16px; border-radius: 5px;" onclick="closeResult()">Далее</button>
@@ -174,7 +176,6 @@
                 const isLocked = c.id > currentUnlockedCase;
                 const card = document.createElement('div');
                 card.className = `case-card ${isLocked ? 'locked' : 'active'}`;
-                if(!isLocked && c.id === currentUnlockedCase) card.classList.add('unlocked-anim');
                 
                 card.innerHTML = `
                     <div class="case-icon">${isLocked ? '🔒' : c.icon}</div>
@@ -221,14 +222,18 @@
             
             document.getElementById(tabId).classList.add('active-tab');
             document.getElementById(`btn-${tabId}`).classList.add('active');
+
+            // Принудительно заставляем A-Frame обновить размер холста при переключении
+            if (tabId === 'tab-view') {
+                window.dispatchEvent(new Event('resize'));
+            }
         }
 
         // Логика Осмотра: игрок кликнул по улике
         function findClue() {
             clueFound = true;
             document.getElementById('interactive-clue').setAttribute('visible', 'false');
-            
-            alert("🔍 Вы нашли главную улику: Золотой кубок! На его основании выгравировано клеймо кузницы. Теперь можно допросить свидетелей.");
+            alert("🔍 Вы нашли главную улику: Золотой кубок! На его основании выгравировано клеймо кузницы. Теперь можно перейти во вкладку «Допрос».");
         }
 
         // Логика Допроса
@@ -245,19 +250,17 @@
                 dName.innerText = "Кузнец Бьерн";
                 dText.innerText = '"Я ничего не брал, шериф! Весь день ковал подковы."';
                 
-                // Опция 1: Обычный вопрос
                 let btn1 = document.createElement('button');
                 btn1.innerText = "Где вы были в 8 вечера?";
                 btn1.onclick = () => { dText.innerText = '"Я же говорю, у себя в кузнице. Спросите стражников!"'; };
                 dOptions.appendChild(btn1);
 
-                // Опция 2: Появляется только ЕСЛИ найдена улика
                 if (clueFound) {
                     let btnClue = document.createElement('button');
                     btnClue.innerText = "⚠️ [Предъявить Кубок] На кубке ваше клеймо!";
                     btnClue.style.background = "#d35400";
                     btnClue.onclick = () => { 
-                        dText.innerText = '"Ладно! Признаю... Это я его вынес, чтобы расплатиться по долгам за металл... Не губите!"'; 
+                        dText.innerText = '"Ладно! Признаю... Это я его вынес, чтобы расплатиться по долгам за металл... Не куйте меня в кандалы!"'; 
                     };
                     dOptions.appendChild(btnClue);
                 }
@@ -272,14 +275,13 @@
             }
         }
 
-        // Логика Обвинения: выбор подозреваемого
+        // Логика Обвинения
         function selectToAccuse(person) {
             selectedSuspect = person;
             document.querySelectorAll('.accuse-card').forEach(c => c.classList.remove('selected'));
             document.getElementById(`acc-${person}`).classList.add('selected');
         }
 
-        // Финальный вердикт
         function finalAccuse() {
             if(!selectedSuspect) {
                 alert("Выберите подозреваемого перед вынесением обвинения!");
@@ -290,13 +292,11 @@
             const resTitle = document.getElementById('res-title');
             const resDesc = document.getElementById('res-desc');
 
-            // Условие победы: Обвинен Кузнец И найдена улика
             if(selectedSuspect === 'smith' && clueFound) {
                 resTitle.innerText = "🏆 ДЕЛО РАСКРЫТО!";
                 resTitle.style.color = "#27ae60";
                 resDesc.innerText = "Великолепная работа! Опираясь на найденный кубок и его клеймо, вы прижали Кузнеца Бьерна к стене, и он во всем сознался. Королевство спит спокойно. Вам доступно следующее расследование!";
                 
-                // Открываем следующее задание, если оно есть
                 if(activeCaseId === currentUnlockedCase && currentUnlockedCase < 8) {
                     currentUnlockedCase++;
                 }
@@ -314,7 +314,6 @@
             goBackToMenu();
         }
 
-        // Старт игры
         renderMenu();
     </script>
 </body>
