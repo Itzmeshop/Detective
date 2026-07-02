@@ -1,1 +1,428 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web-OS Detective: След в Сети</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
 
+        body, html {
+            width: 100%;
+            height: 100%;
+            font-family: 'Courier New', Courier, monospace;
+            overflow: hidden;
+            background: #1a1a1a;
+        }
+
+        /* Рабочий стол */
+        .desktop {
+            width: 100%;
+            height: calc(100% - 40px);
+            background: radial-gradient(circle, #2c3e50 0%, #0f171e 100%);
+            position: relative;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-content: flex-start;
+            flex-wrap: wrap;
+        }
+
+        /* Иконки на рабочем столе */
+        .shortcut {
+            width: 90px;
+            height: 90px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            cursor: pointer;
+            color: #ffffff;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .shortcut:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .shortcut-icon {
+            font-size: 40px;
+            margin-bottom: 5px;
+        }
+
+        .shortcut-label {
+            font-size: 12px;
+            word-break: break-word;
+        }
+
+        /* Окна приложений */
+        .window {
+            position: absolute;
+            width: 450px;
+            height: 350px;
+            background: #ffffff;
+            border: 2px solid #333;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.5);
+            display: none;
+            flex-direction: column;
+            z-index: 10;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .window-header {
+            background: #333;
+            color: #fff;
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: move;
+            font-weight: bold;
+        }
+
+        .window-title {
+            font-size: 14px;
+        }
+
+        .close-btn {
+            background: #e74c3c;
+            border: none;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 12px;
+            line-height: 20px;
+            text-align: center;
+        }
+
+        .close-btn:hover {
+            background: #c0392b;
+        }
+
+        .window-content {
+            padding: 15px;
+            flex-grow: 1;
+            overflow-y: auto;
+            color: #333;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        /* Специфический контент для окон */
+        .locked-content {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .input-field {
+            padding: 6px;
+            font-family: inherit;
+            border: 1px solid #ccc;
+            width: 80%;
+            text-align: center;
+        }
+
+        .action-btn {
+            padding: 6px 12px;
+            background: #27ae60;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .action-btn:hover {
+            background: #219653;
+        }
+
+        /* Имитация Браузера */
+        .browser-bar {
+            background: #f1f1f1;
+            padding: 5px;
+            border-bottom: 1px solid #ccc;
+            display: flex;
+            gap: 5px;
+        }
+        .browser-input {
+            flex-grow: 1;
+            padding: 4px 8px;
+            font-family: inherit;
+            font-size: 12px;
+            border: 1px solid #ccc;
+        }
+        .browser-page {
+            padding: 10px;
+            background: #fff;
+            height: calc(100% - 35px);
+            overflow-y: auto;
+        }
+        .syndicate-site {
+            font-family: sans-serif;
+            color: #2c3e50;
+        }
+
+        /* Нижняя панель задач */
+        .taskbar {
+            width: 100%;
+            height: 40px;
+            background: #111;
+            border-top: 1px solid #333;
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            color: #888;
+            font-size: 14px;
+            justify-content: space-between;
+            position: relative;
+            z-index: 100;
+        }
+
+        .system-status {
+            color: #27ae60;
+            font-weight: bold;
+            animation: blink 2s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="desktop" id="desktop">
+        
+        <div class="shortcut" onclick="openWindow('win-notes')">
+            <div class="shortcut-icon">📝</div>
+            <div class="shortcut-label">Заметки.txt</div>
+        </div>
+
+        <div class="shortcut" onclick="openWindow('win-archive')">
+            <div class="shortcut-icon">📁</div>
+            <div class="shortcut-label">Секретно</div>
+        </div>
+
+        <div class="shortcut" onclick="openWindow('win-browser')">
+            <div class="shortcut-icon">🌐</div>
+            <div class="shortcut-label">Браузер NetScape</div>
+        </div>
+
+    </div>
+
+    <div id="win-notes" class="window" style="top: 50px; left: 150px;">
+        <div class="window-header">
+            <span class="window-title">Блокнот - Заметки.txt</span>
+            <button class="close-btn" onclick="closeWindow('win-notes')">X</button>
+        </div>
+        <div class="window-content">
+            <p><strong>Запись от 14.10.2026:</strong></p>
+            <p>Они следят за мной. Я спрятал лог-файлы в секретную папку на этом столе.</p>
+            <p>Пароль сделал простой, чтобы не забыть — это <b>год основания нашего кузнечного синдиката</b>. (Подсказка: проверь историю компании, ну или просто вспомни <span style="color: #7f8c8d;">1984</span> год... Стоп, или это был год рождения?).</p>
+            <br>
+            <p><i>Прим. детектива: Из переписки в секретной папке мы узнали кодовое слово. Но где сам план поставок? Нужно проверить историю посещений браузера или поискать сайт синдиката.</i></p>
+        </div>
+    </div>
+
+    <div id="win-archive" class="window" style="top: 100px; left: 250px;">
+        <div class="window-header">
+            <span class="window-title">Архиватор - Доступ ограничен</span>
+            <button class="close-btn" onclick="closeWindow('win-archive')">X</button>
+        </div>
+        <div class="window-content" id="archive-body">
+            <div class="locked-content" id="lock-screen">
+                <div>Внимание! Файл зашифрован.</div>
+                <input type="password" id="pass-input" class="input-field" placeholder="Введите пароль...">
+                <button class="action-btn" onclick="checkPassword()">Разблокировать</button>
+                <div id="error-msg" style="color: #e74c3c; font-size: 12px; display: none;">Неверный код доступа.</div>
+            </div>
+            <div id="secret-content" style="display: none;">
+                <h3 style="color: #27ae60; margin-bottom: 10px;">ДОСТУП РАЗРЕШЕН</h3>
+                <p><b>Из переписки объекта:</b></p>
+                <p>"Золото доставлено на склад №4. Ключ у кузнеца. Кодовое слово: <span style="color: #e67e22; font-weight: bold;">Ржавчина</span>. Проверь статус отгрузки на нашем внутреннем сайте: <span style="color: #2980b9; font-weight: bold;">syndicate.local</span>"</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="win-browser" class="window" style="top: 80px; left: 400px; width: 550px; height: 400px;">
+        <div class="window-header">
+            <span class="window-title">Браузер NetScape v1.0</span>
+            <button class="close-btn" onclick="closeWindow('win-browser')">X</button>
+        </div>
+        <div class="browser-bar">
+            <input type="text" id="url-field" class="browser-input" value="google.com" placeholder="Введите URL...">
+            <button class="action-btn" style="padding: 2px 10px; font-size: 12px;" onclick="navigateBrowser()">Перейти</button>
+        </div>
+        <div class="window-content" style="padding: 0; background: #eee;">
+            <div id="page-google" class="browser-page" style="display: block; text-align: center; padding-top: 50px;">
+                <h1 style="font-family: sans-serif; font-size: 36px; margin-bottom: 20px;"><span style="color:#4285F4">G</span><span style="color:#EA4335">o</span><span style="color:#FBBC05">o</span><span style="color:#4285F4">g</span><span style="color:#34A853">l</span><span style="color:#EA4335">e</span></h1>
+                <input type="text" class="input-field" style="width: 70%;" placeholder="Поиск в Интернете..." disabled value="Нет соединения с внешней сетью">
+                <p style="font-size: 11px; color: #777; margin-top: 10px;">Доступен только локальный прокси-сервер.</p>
+            </div>
+
+            <div id="page-syndicate" class="browser-page" style="display: none;">
+                <div class="syndicate-site">
+                    <div style="background: #2c3e50; color: white; padding: 10px; margin-bottom: 15px;">
+                        <h2>КУЗНЕЧНЫЙ СИНДИКАТ — ВНУТРЕННЯЯ СЕТЬ</h2>
+                    </div>
+                    <p>Добро пожаловать в панель мониторинга поставок драгоценных металлов.</p>
+                    <hr style="margin: 10px 0;">
+                    <h4>Форма проверки статуса груза:</h4>
+                    <br>
+                    <div style="display: flex; flex-direction: column; gap: 10px; max-width: 300px;">
+                        <input type="text" id="syndicate-keyword" class="input-field" style="text-align: left;" placeholder="Введите кодовое слово...">
+                        <button class="action-btn" onclick="checkSyndicateSite()">Запросить логи</button>
+                    </div>
+                    <div id="syndicate-result" style="margin-top: 15px; font-weight: bold;"></div>
+                </div>
+            </div>
+
+            <div id="page-404" class="browser-page" style="display: none; padding: 30px; text-align: center;">
+                <h1 style="color: #c0392b;">404 Not Found</h1>
+                <p style="margin-top: 10px;">Сервер по данному адресу не отвечает или заблокирован брандмауэром.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="taskbar">
+        <div><span>Система: </span><span class="system-status">ONLINE (Бэкап_v4.2)</span></div>
+        <div id="clock">12:00</div>
+    </div>
+
+    <script>
+        // Открытие окон
+        function openWindow(id) {
+            const win = document.getElementById(id);
+            win.style.display = 'flex';
+            bringToFront(win);
+        }
+
+        // Закрытие окон
+        function closeWindow(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+
+        // Вариант 1: Логика проверки пароля к папке
+        function checkPassword() {
+            const input = document.getElementById('pass-input').value;
+            const error = document.getElementById('error-msg');
+            const lockScreen = document.getElementById('lock-screen');
+            const secretContent = document.getElementById('secret-content');
+
+            if (input === '1984') {
+                lockScreen.style.display = 'none';
+                secretContent.style.display = 'block';
+            } else {
+                error.style.display = 'block';
+            }
+        }
+
+        // Вариант 2: Логика работы браузера (переходы по сайтам)
+        function navigateBrowser() {
+            const url = document.getElementById('url-field').value.trim().toLowerCase();
+            
+            // Прячем все страницы браузера
+            document.getElementById('page-google').style.display = 'none';
+            document.getElementById('page-syndicate').style.display = 'none';
+            document.getElementById('page-404').style.display = 'none';
+
+            // Переключаем на нужную в зависимости от URL
+            if (url === 'syndicate.local') {
+                document.getElementById('page-syndicate').style.display = 'block';
+            } else if (url === 'google.com') {
+                document.getElementById('page-google').style.display = 'block';
+            } else {
+                document.getElementById('page-404').style.display = 'block';
+            }
+        }
+
+        // Вариант 2: Логика проверки кодового слова на сайте синдиката
+        function checkSyndicateSite() {
+            const keyword = document.getElementById('syndicate-keyword').value.trim().toLowerCase();
+            const resultDiv = document.getElementById('syndicate-result');
+
+            // Игрок должен ввести "Ржавчина" (которое нашел в Варианте 1)
+            if (keyword === 'ржавчина') {
+                resultDiv.style.color = '#27ae60';
+                resultDiv.innerHTML = `
+                    <p style="color: #27ae60">✓ КОД КОРРЕКТЕН. ИЗВЛЕЧЕНИЕ ЛОГА...</p>
+                    <p style="color: #333; font-weight: normal; margin-top: 10px; background: #fff; padding: 5px; border: 1px dashed #ccc;">
+                        "Контрабанда меди и золота запланирована на <b>пятницу, в 03:00 ночи</b>. Порт, док №9. При себе иметь поддельный пропуск."
+                    </p>
+                    <br>
+                    <p style="color: #2980b9;">🎉 Дело раскрыто! Вы связали улики из Блокнота, Папки и Браузера!</p>
+                `;
+            } else {
+                resultDiv.style.color = '#e74c3c';
+                resultDiv.innerText = "Ошибка: Неверное кодовое слово для доступа к логам.";
+            }
+        }
+
+        // Перетаскивание окон (Drag and Drop)
+        const windows = document.querySelectorAll('.window');
+        let activeWindow = null;
+        let zIndexCounter = 10;
+
+        windows.forEach(win => {
+            const header = win.querySelector('.window-header');
+            
+            win.addEventListener('mousedown', () => bringToFront(win));
+
+            header.addEventListener('mousedown', (e) => {
+                activeWindow = win;
+                let shiftX = e.clientX - win.getBoundingClientRect().left;
+                let shiftY = e.clientY - win.getBoundingClientRect().top;
+
+                function moveAt(pageX, pageY) {
+                    win.style.left = pageX - shiftX + 'px';
+                    win.style.top = pageY - shiftY + 'px';
+                }
+
+                function onMouseMove(e) {
+                    moveAt(e.clientX, e.clientY);
+                }
+
+                document.addEventListener('mousemove', onMouseMove);
+
+                document.onmouseup = function() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.onmouseup = null;
+                    activeWindow = null;
+                };
+            });
+
+            header.ondragstart = function() { return false; };
+        });
+
+        function bringToFront(win) {
+            zIndexCounter++;
+            win.style.zIndex = zIndexCounter;
+        }
+
+        // Часы
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toTimeString().substring(0, 5);
+            document.getElementById('clock').innerText = timeStr;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
+</body>
+</html>
