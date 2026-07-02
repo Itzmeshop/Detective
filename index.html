@@ -3,374 +3,360 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Архивы Сыщика: Настоящий Детектив</title>
+    <title>3D Детектив</title>
+    <!-- Подключаем стабильный облегченный 3D движок -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body, html { width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0b0c10; color: #c5c6c7; overflow-y: auto; }
+        body, html { width: 100%; height: 100%; font-family: sans-serif; background: #0c0c0e; color: #e0e0e0; overflow: hidden; }
         
-        /* ГЛАВНОЕ МЕНЮ */
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; min-height: 100%; display: flex; flex-direction: column; }
-        .header-title { text-align: center; margin: 20px 0; font-size: 26px; color: #66fcf1; font-weight: 800; letter-spacing: 1px; }
-        
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
-        .card { background: #1f2833; border: 1px solid #45f3ff33; border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; transition: 0.2s; min-height: 120px; display: flex; flex-direction: column; justify-content: center; }
-        .card.active:hover { border-color: #66fcf1; background: #24303f; }
-        .card.locked { opacity: 0.3; cursor: not-allowed; }
-        .card-icon { font-size: 28px; margin-bottom: 5px; }
-        .card-title { font-size: 14px; font-weight: bold; color: #fff; }
+        /* МЕНЮ */
+        #main-menu { padding: 20px; display: flex; flex-direction: column; height: 100%; overflow-y: auto; background: #111116; }
+        .menu-title { text-align: center; margin: 20px 0; font-size: 22px; color: #f1c40f; font-weight: bold; }
+        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        .card { background: #1c1c24; border: 1px solid #333; border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; }
+        .card.locked { opacity: 0.3; }
 
         /* ИГРОВОЙ ЭКРАН */
-        #game-screen { display: none; flex-direction: column; height: 100vh; }
-        .top-nav { background: #1f2833; padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid #66fcf1; }
-        .btn { background: #0b0c10; border: 1px solid #66fcf1; color: #66fcf1; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; }
-        .btn:hidden { display: none; }
-        .btn-danger { color: #fc4445; border-color: #fc4445; }
-        
-        .main-content { flex: 1; overflow-y: auto; padding: 15px; }
-        
-        /* ВКЛАДКИ ПОИСКА УЛИК */
-        .search-zones { display: grid; grid-template-columns: 1fr; gap: 10px; }
-        .zone-box { background: #1f2833; border-left: 4px solid #45f3ff; border-radius: 6px; padding: 15px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
-        .zone-box.searched { border-left-color: #1f2833; opacity: 0.7; background: #1a212a; }
-        .zone-name { font-weight: bold; color: #fff; }
-        .zone-status { font-size: 12px; color: #66fcf1; }
+        #game-screen { display: none; width: 100%; height: 100%; flex-direction: column; position: relative; }
+        .top-bar { height: 50px; background: #111116; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; z-index: 10; }
+        .back-btn { background: #222; border: 1px solid #f1c40f; color: #f1c40f; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
 
-        /* ДОПРОС */
-        .suspect-item { background: #1f2833; border-radius: 8px; padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
-        .suspect-meta strong { color: #fff; font-size: 15px; display: block; }
-        .suspect-meta span { font-size: 12px; color: #a4b0be; }
-        
-        .chat-box { background: #151a22; border: 1px solid #66fcf1; border-radius: 8px; padding: 15px; margin-top: 15px; }
-        .chat-text { font-style: italic; font-size: 14px; margin-bottom: 15px; line-height: 1.4; }
-        .chat-options button { display: block; width: 100%; background: #1f2833; border: 1px solid #45f3ff44; color: #fff; padding: 10px; margin-bottom: 8px; border-radius: 6px; text-align: left; font-size: 13px; cursor: pointer; }
-        .chat-options button:hover { background: #24303f; border-color: #66fcf1; }
+        /* ВКЛАДКИ */
+        .tab-content { flex-grow: 1; position: relative; display: none; height: calc(100% - 105px); background: #111116; overflow-y: auto; }
+        .tab-content.active-tab { display: block; }
+        #tab-view { background: #000; overflow: hidden; }
 
-        /* ОБВИНЕНИЕ */
-        .accuse-item { background: #1f2833; border: 2px solid transparent; border-radius: 8px; padding: 12px; margin-bottom: 10px; cursor: pointer; }
-        .accuse-item h4 { color: #fff; margin-bottom: 3px; }
-        .accuse-item p { font-size: 12px; }
-        .accuse-item.selected { border-color: #fc4445; background: #2d1f22; }
+        /* ИНТЕРФЕЙС ПОВЕРХ 3D */
+        .ar-info { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 8px 15px; border-radius: 15px; font-size: 11px; z-index: 10; border: 1px solid #f1c40f; text-align: center; width: 90%; }
+        .clue-counter { position: absolute; bottom: 15px; left: 15px; background: rgba(0,0,0,0.8); border: 1px solid #f1c40f; padding: 6px 12px; border-radius: 8px; z-index: 10; font-size: 12px; color: #f1c40f; font-weight: bold; }
 
-        /* СНИЗУ ПАНЕЛЬ ОБЩАЯ */
-        .tabs-menu { background: #1f2833; display: flex; height: 55px; border-top: 1px solid #2d3748; }
-        .tab-btn { flex: 1; background: none; border: none; color: #a4b0be; font-size: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; }
-        .tab-btn.active { color: #66fcf1; background: #151a22; font-weight: bold; }
-        .tab-btn span { font-size: 18px; margin-bottom: 2px; }
+        /* ДОПРОС И ОБВИНЕНИЕ */
+        .suspect-row { background: #1c1c24; padding: 12px; border-radius: 10px; margin: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
+        .talk-btn { background: #f1c40f; color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .chat-box { background: #1c1c24; border: 1px solid #f1c40f; border-radius: 10px; padding: 15px; margin: 10px; }
+        .chat-text { font-style: italic; font-size: 14px; background: #000; padding: 10px; border-radius: 6px; margin-bottom: 10px; border-left: 3px solid #f1c40f; }
+        .chat-options button { display: block; width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 8px; margin: 5px 0; border-radius: 6px; text-align: left; }
 
-        /* ЭКРАН РЕЗУЛЬТАТОВ */
-        #result-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(11,12,16,0.98); z-index: 100; flex-direction: column; align-items: center; justify-content: center; padding: 25px; text-align: center; }
-        .res-status { font-size: 24px; font-weight: 900; margin-bottom: 15px; }
+        .accuse-card { background: #1c1c24; padding: 12px; border-radius: 10px; margin: 10px; border: 2px solid #333; }
+        .accuse-card.selected { border-color: #e74c3c; background: #2a1c1c; }
+
+        /* НАВИГАЦИЯ СНИЗУ */
+        .bottom-nav { height: 55px; background: #111116; border-top: 1px solid #222; display: flex; }
+        .nav-item { flex: 1; background: none; border: none; color: #777; font-size: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; }
+        .nav-item.active { color: #f1c40f; background: #1c1c24; font-weight: bold; }
+
+        /* ОКНО РЕЗУЛЬТАТА */
+        #result-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div id="menu-screen" class="container">
-        <h1 class="header-title">🔐 СЛЕДСТВЕННЫЙ КОМИТЕТ</h1>
+    <!-- ЭКРАН 1: ГЛАВНОЕ МЕНЮ -->
+    <div id="main-menu">
+        <h1 class="menu-title">📂 АРХИВЫ СЫСКНОЙ ПОЛИЦИИ</h1>
         <div class="grid" id="menu-grid"></div>
     </div>
 
+    <!-- ЭКРАН 2: ИГРА (3D + ИНТЕРФЕЙС) -->
     <div id="game-screen">
-        <div class="top-nav">
-            <button class="btn" onclick="exitToMenu()">← Меню</button>
-            <span id="case-title" style="color: #fff; font-weight: bold; font-size: 14px;">Дело</span>
-            <span id="global-counter" style="color: #66fcf1; font-size: 13px; font-weight: bold;">Улики: 0/5</span>
+        <div class="top-bar">
+            <button class="back-btn" onclick="goBack()">← Выйти</button>
+            <span id="header-title" style="font-weight:bold; font-size:14px;">Дело</span>
+            <div style="width:50px;"></div>
         </div>
 
-        <div class="main-content" id="tab-evidence-content">
-            <h3 style="color:#fff; margin-bottom:12px; font-size:15px;">Осмотр локации преступления:</h3>
-            <div class="search-zones" id="zones-list"></div>
+        <!-- ВКЛАДКА 1: ПЛАВНЫЙ СТАБИЛЬНЫЙ 3D ОБЗОР -->
+        <div id="tab-view" class="tab-content active-tab">
+            <div class="ar-info"><b>Крутите экран пальцем!</b> Осмотритесь на 360° во все стороны. Найдите все 5 улик.</div>
+            <div class="clue-counter">Улики: <span id="clue-score">0</span> / 5</div>
+            
+            <!-- Встроенная 3D сцена -->
+            <a-scene embedded vr-mode-ui="enabled: false" loading-screen="enabled: false">
+                
+                <!-- Коробка комнаты. Сюда можно загружать любые ИИ текстуры стен (src) -->
+                <a-box position="0 1.5 0" scale="6 4 6" material="color: #2c3e50; side: double; roughness: 0.8;">
+                    <!-- Для реализма ИИ-генерации вы можете вешать картинки прямо на стены: src="my-ai-room.jpg" -->
+                </a-box>
+
+                <!-- Освещение сцены -->
+                <a-entity light="type: ambient; color: #777; intensity: 0.6"></a-entity>
+                <a-entity light="type: directional; intensity: 0.6" position="1 3 1"></a-entity>
+
+                <!-- 5 ИНТЕРАКТИВНЫХ УЛИК РАЗБРОСАННЫХ ПО 3D ПРОСТРАНСТВУ -->
+                <!-- Улика 1: Спереди -->
+                <a-entity id="clue-1" position="0 0.8 -2.2" class="click-target" onclick="clickClue(1, '🏆 Золотой кубок со следами яда на дне.')">
+                    <a-cylinder radius="0.1" height="0.25" color="#f1c40f" metalness="0.7"></a-cylinder>
+                </a-entity>
+
+                <!-- Улика 2: Справа -->
+                <a-entity id="clue-2" position="2.2 0.5 -1" class="click-target" onclick="clickClue(2, '⚔️ Изломанный кинжал со стертым клеймом.')">
+                    <a-box width="0.05" height="0.4" depth="0.05" rotation="0 0 45" color="#95a5a6"></a-box>
+                </a-entity>
+
+                <!-- Улика 3: Слева -->
+                <a-entity id="clue-3" position="-2.2 0.3 0" class="click-target" onclick="clickClue(3, '⚙️ Воровская отмычка, застрявшая в щели пола.')">
+                    <a-cylinder radius="0.02; height: 0.3" rotation="90 0 0" color="#7f8c8d"></a-cylinder>
+                </a-entity>
+
+                <!-- Улика 4: Сзади -->
+                <a-entity id="clue-4" position="0 1.2 2.2" class="click-target" onclick="clickClue(4, '🧪 Пустой фиал из-под редкого растительного токсина.')">
+                    <a-sphere radius="0.08" color="#9b59b6"></a-sphere>
+                </a-entity>
+
+                <!-- Улика 5: На полу под ногами -->
+                <a-entity id="clue-5" position="0.5 0.05 -0.8" class="click-target" onclick="clickClue(5, '📜 Обгоревший листок бумаги с зашифрованным текстом.')">
+                    <a-box width="0.3" height="0.01" depth="0.2" color="#e67e22"></a-box>
+                </a-entity>
+
+                <!-- УПРАВЛЕНИЕ КАМЕРОЙ: Плавный тач без прыжков -->
+                <a-entity id="cam-rig">
+                    <a-entity camera id="main-cam" position="0 1.5 0" look-controls="enabled: false">
+                        <!-- Наведённый прицел в центре экрана для кликов -->
+                        <a-cursor color="#f1c40f" scale="1.2 1.2 1.2" raycaster="objects: .click-target"></a-cursor>
+                    </a-entity>
+                </a-entity>
+            </a-scene>
         </div>
 
-        <div class="main-content" id="tab-suspects-content" style="display:none;">
-            <h3 style="color:#fff; margin-bottom:12px; font-size:15px;">Допрос подозреваемых лиц (4 человека):</h3>
+        <!-- ВКЛАДКА 2: ДОПРОС -->
+        <div id="tab-suspects" class="tab-content">
             <div id="suspects-list"></div>
-            <div class="chat-box" id="interrogation-box" style="display:none;">
-                <h4 id="chat-name" style="color:#66fcf1; margin-bottom:5px;">Имя</h4>
-                <div class="chat-text" id="chat-text">Приветствие...</div>
-                <div class="chat-options" id="chat-options"></div>
+            <div class="chat-box" id="c-box" style="display:none;">
+                <h4 id="c-name" style="color:#f1c40f;">Имя</h4>
+                <p class="chat-text" id="c-text">...</p>
+                <div class="chat-options" id="c-options"></div>
             </div>
         </div>
 
-        <div class="main-content" id="tab-accuse-content" style="display:none;">
-            <h3 style="color:#fff; margin-bottom:5px; font-size:15px;">Передача дела в суд:</h3>
-            <p style="font-size:12px; margin-bottom:15px; color:#a4b0be;">Внимательно изучите показания. Ошибка оправдает убийцу.</p>
+        <!-- ВКЛАДКА 3: СУД -->
+        <div id="tab-accuse" class="tab-content" style="padding:10px;">
+            <h4 style="margin:10px 0;">Укажите истинного убийцу:</h4>
             <div id="accuse-list"></div>
-            <button class="btn btn-danger" style="width:100%; padding:14px; font-size:15px; margin-top:10px;" onclick="submitVerdict()">ОБЪЯВИТЬ ОФИЦИАЛЬНЫЙ ВЕРДИКТ</button>
+            <button class="talk-btn" style="background:#e74c3c; color:#fff; width:100%; padding:12px; margin-top:15px; font-size:15px;" onclick="closeCaseInCourt()">ВЫНЕСТИ ПРИГОВОР</button>
         </div>
 
-        <div class="tabs-menu">
-            <button class="tab-btn active" id="btn-ev" onclick="switchTab('evidence')"><span>🔍</span>Место</button>
-            <button class="tab-btn" id="btn-su" onclick="switchTab('suspects')"><span>💬</span>Допрос</button>
-            <button class="tab-btn" id="btn-ac" onclick="switchTab('accuse')"><span>⚖️</span>Суд</button>
+        <!-- КНОПКИ НАВИГАЦИИ -->
+        <div class="bottom-nav">
+            <button class="nav-item active" id="nav-view" onclick="switchTab('tab-view')">👁️ Осмотр</button>
+            <button class="nav-item" id="nav-suspects" onclick="switchTab('tab-suspects')">💬 Допрос (4)</button>
+            <button class="nav-item" id="nav-accuse" onclick="switchTab('tab-accuse')">⚖️ Суд</button>
         </div>
     </div>
 
-    <div id="result-modal">
-        <div class="res-status" id="res-title">ПОБЕДА</div>
-        <p id="res-text" style="max-width:450px; line-height:1.5; margin-bottom:25px; color:#a4b0be; font-size:14px;"></p>
-        <button class="btn" style="padding:12px 30px;" onclick="closeResultModal()">Продолжить</button>
+    <!-- ФИНАЛЬНОЕ ОКНО -->
+    <div id="result-screen">
+        <h2 id="res-title" style="font-size:24px; margin-bottom:15px;">Результат</h2>
+        <p id="res-desc" style="color:#bdc3c7; line-height:1.4; margin-bottom:20px; font-size:14px; max-width:400px;"></p>
+        <button class="talk-btn" style="padding:10px 25px;" onclick="finishResult()">Продолжить</button>
     </div>
 
     <script>
         let unlockedCase = 1;
-        let currentCaseId = 1;
-        let activeSuspectId = null;
-        let selectedAccusedId = null;
-        
-        let evidenceFound = { 1: false, 2: false, 3: false, 4: false, 5: false };
+        let activeCase = 1;
+        let selectedAccused = null;
+        let foundCount = 0;
+        let cluesState = {1:false, 2:false, 3:false, 4:false, 5:false};
 
-        const casesDB = {
+        const db = {
             1: {
-                title: "Похищение кубка лорда", icon: "🏆", killer: "page",
-                zones: [
-                    { id: 1, name: "Около витрины", clue: "🏆 Золотой кубок со странным белым налетом мышьяка на донышке.", found: false },
-                    { id: 2, name: "Ковёр у кровати", clue: "⚙️ Профессиональная воровская отмычка, брошенная в спешке.", found: false },
-                    { id: 3, name: "Каминный зев", clue: "📜 Обгоревший обрывок долговой расписки на имя слуги Филиппа.", found: false },
-                    { id: 4, name: "Окно на террасу", clue: "🪟 Замок окна цел, его открыли изнутри комнаты.", found: false },
-                    { id: 5, name: "Ящик стола", clue: "🔑 Дубликат ключей от покоев, спрятанный под бумагами.", found: false }
-                ],
+                title: "Похищение кубка лорда", killer: "page",
                 suspects: [
-                    { id: "smith", name: "Кузнец Бьерн", role: "Делал замки во дворце", intro: '"Я ковал железо всю ночь в цеху. Мои отмычки всегда под замком!"' },
-                    { id: "lady", name: "Леди Элеонора", role: "Супруга потерпевшего", intro: '"Кубок — наша реликвия. Я спала в соседнем крыле и ничего не слышала."' },
-                    { id: "guard", name: "Капитан Гилберт", role: "Начальник ночной стражи", intro: '"Окна террасы проверялись лично мной вечером, всё было на засовах!"' },
-                    { id: "page", name: "Слуга Филипп", role: "Личный паж лорда", intro: '"Я просто разносил вино господам. Я нищий слуга, зачем мне кубок?"' }
+                    { id: "smith", name: "Кузнец Бьерн", role: "Мастер по замкам", text: '"Я работал в кузнице всю ночь. Кубок лорда в глаза не видел."' },
+                    { id: "lady", name: "Леди Элеонора", role: "Жена лорда", text: '"Кубок украли из запертой спальни, пока мы спали. Это ужасно!"' },
+                    { id: "guard", name: "Стражник Гилберт", role: "Охрана дверей", text: '"Мимо меня никто не проходил, дверь была закрыта на внутренний засов."' },
+                    { id: "page", name: "Слуга Филипп", role: "Подносчик вина", text: '"Я просто убирал со стола посуду вечером. Я не крал!"' }
                 ]
             },
             2: {
-                title: "Тайна подпольного цеха", icon: "⚔️", killer: "merchant",
-                zones: [
-                    { id: 1, name: "Точильный камень", clue: "⚔️ Обломок дорогого кинжала с клеймом купеческой гильдии.", found: false },
-                    { id: 2, name: "Угольный склад", clue: "💰 Мешочек со свежеотчеканенными фальшивыми монетами.", found: false },
-                    { id: 3, name: "Пол у наковальни", clue: "🩸 Засохшие капли крови, ведущие к выходу на задний двор.", found: false },
-                    { id: 4, name: "Рабочий фартук", clue: "🧵 Следы дорогой шелковой нити, застрявшей в грубой коже фартука.", found: false },
-                    { id: 5, name: "Полка с чертежами", clue: "📜 Записка с угрозами: «Срок до пятницы, или цех сгорит»", found: false }
-                ],
+                title: "Убийство в мастерской", killer: "merchant",
                 suspects: [
-                    { id: "apprentice", name: "Ученик Ганс", role: "Помощник мастера", intro: '"Я ушел спать рано. Мастер оставался работать один."' },
-                    { id: "merchant", name: "Купец Олаф", role: "Главный поставщик сырья", intro: '"Мастер задолжал мне за шелк и металл. Но убивать его? Бизнес так не ведут!"' },
-                    { id: "monk", name: "Монах Иероним", role: "Местный лекарь-травник", intro: '"Я пришел заказать ступку, но нашел лишь остывающее тело."' },
-                    { id: "guard2", name: "Патрульный стражник", role: "Охрана квартала", intro: '"Ночью в переулке было тихо, только купеческая карета проезжала около полуночи."' }
+                    { id: "apprentice", name: "Ученик Ганс", role: "Подмастерье", text: '"Мастер ругал меня вчера, но ночью я спал у себя в каморке."' },
+                    { id: "merchant", name: "Купец Олаф", role: "Кредитор", text: '"Он был должен мне мешок золота! Его смерть лишила меня денег!"' },
+                    { id: "monk", name: "Монах Иероним", role: "Лекарь", text: '"Я зашел проведать ювелира, но застал его уже мертвым на полу."' },
+                    { id: "thief", name: "Вор Клемент", role: "Карманник", text: '"В эту ночь я чистил карманы в портовом кабаке, у меня куча свидетелей."' }
                 ]
             }
-            // Вы можете легко дублировать блоки для дел 3-8 по аналогии
         };
 
-        // Заполнение меню дел (автогенерация оставшихся 6 дел для объема)
-        for (let i = 3; i <= 8; i++) {
-            casesDB[i] = {
-                title: `Архивное дело №${i}`, icon: "📁", killer: "suspect_1",
-                zones: [
-                    { id: 1, name: "Письменный стол", clue: "📜 Секретная шифровка заговорщиков.", found: false },
-                    { id: 2, name: "Угол под ковром", clue: "🔑 Потерянный ключ от архива.", found: false },
-                    { id: 3, name: "Полка шкафа", clue: "🧪 Пустой флакон из-под снотворного.", found: false },
-                    { id: 4, name: "Пол у двери", clue: "👣 Грязный след от сапога большого размера.", found: false },
-                    { id: 5, name: "Тайник в стене", clue: "💰 Горсть старых золотых монет.", found: false }
-                ],
+        // Генерируем остальные дела для масштаба (до 8)
+        for(let i=3; i<=8; i++) {
+            db[i] = {
+                title: `Секретное дело №${i}`, killer: "sus_1",
                 suspects: [
-                    { id: "suspect_1", name: "Подозреваемый А", role: "Служащий замка", intro: '"Я выполнял свои обязанности и ничего подозрительного не видел."' },
-                    { id: "suspect_2", name: "Подозреваемый Б", role: "Гость из столицы", intro: '"Я прибыл только на этой неделе, здешние дела меня не касаются."' },
-                    { id: "suspect_3", name: "Подозреваемый В", role: "Местный торговец", intro: '"Моя лавка закрывается на закате, я спал дома."' },
-                    { id: "suspect_4", name: "Подозреваемый Г", role: "Ночной дворник", intro: '"Ночь была темной, шел сильный дождь, на улице пусто."' }
+                    { id: "sus_1", name: "Подозреваемый X", role: "Подозреваемый", text: '"Я ни в чем не виноват, детектив!"' },
+                    { id: "sus_2", name: "Подозреваемый Y", role: "Свидетель", text: '"Я ничего странного не заметил той ночью."' },
+                    { id: "sus_3", name: "Подозреваемый Z", role: "Прохожий", text: '"Я просто гулял мимо дворцовой площади."' },
+                    { id: "sus_4", name: "Подозреваемый W", role: "Служащий", text: '"В мое дежурство всё шло строго по инструкции."' }
                 ]
             };
         }
 
-        function initMenu() {
+        // НАПИСАННЫЙ С НУЛЯ ТАЧ-СКРИПТ ДЛЯ КАМЕРЫ (Стабильный 3D обзор на смартфонах)
+        const rig = document.getElementById('cam-rig');
+        let startX = 0, startY = 0;
+        let rotX = 0, rotY = 0;
+
+        function touchStart(e) {
+            startX = e.touches ? e.touches[0].clientX : e.clientX;
+            startY = e.touches ? e.touches[0].clientY : e.clientY;
+        }
+        function touchMove(e) {
+            if (document.getElementById('tab-view').classList.contains('active-tab')) {
+                const x = e.touches ? e.touches[0].clientX : e.clientX;
+                const y = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                let dx = (x - startX) * 0.25;
+                let dy = (y - startY) * 0.25;
+
+                rotY += dx;
+                rotX = Math.max(-60, Math.min(60, rotX - dy)); // Ограничение обзора вверх/вниз
+
+                rig.setAttribute('rotation', `${rotX} ${rotY} 0`);
+                startX = x; startY = y;
+            }
+        }
+        const view = document.getElementById('tab-view');
+        view.addEventListener('touchstart', touchStart, {passive:true});
+        view.addEventListener('touchmove', touchMove, {passive:true});
+        view.addEventListener('mousedown', touchStart);
+        view.addEventListener('mousemove', (e) => { if(e.buttons === 1) touchMove(e); });
+
+        // МЕНЮ И СИСТЕМА
+        function buildMenu() {
             const grid = document.getElementById('menu-grid');
             grid.innerHTML = '';
-            for (let i = 1; i <= 8; i++) {
-                const c = casesDB[i];
+            for(let i=1; i<=8; i++) {
                 const isLocked = i > unlockedCase;
-                const el = document.createElement('div');
-                el.className = `card ${isLocked ? 'locked' : 'active'}`;
-                el.innerHTML = `
-                    <div class="card-icon">${isLocked ? '🔒' : c.icon}</div>
-                    <div class="card-title">${isLocked ? 'Заблокировано' : c.title}</div>
+                grid.innerHTML += `
+                    <div class="card ${isLocked ? 'locked' : ''}" onclick="${isLocked ? '' : `loadCase(${i})`}">
+                        <div style="font-size:24px;">${isLocked ? '🔒' : '📁'}</div>
+                        <div style="font-size:13px; font-weight:bold; margin-top:5px; color:#fff;">${db[i].title}</div>
+                    </div>
                 `;
-                if (!isLocked) el.onclick = () => startCase(i);
-                grid.appendChild(el);
             }
         }
 
-        function startCase(id) {
-            currentCaseId = id;
-            evidenceFound = { 1: false, 2: false, 3: false, 4: false, 5: false };
-            selectedAccusedId = null;
-            activeSuspectId = null;
-            
-            document.getElementById('case-title').innerText = casesDB[id].title;
-            document.getElementById('menu-screen').style.display = 'none';
+        function loadCase(id) {
+            activeCase = id;
+            foundCount = 0;
+            cluesState = {1:false, 2:false, 3:false, 4:false, 5:false};
+            selectedAccused = null;
+            document.getElementById('clue-score').innerText = "0";
+
+            document.getElementById('header-title').innerText = db[id].title;
+            document.getElementById('main-menu').style.display = 'none';
             document.getElementById('game-screen').style.display = 'flex';
+
+            for(let i=1; i<=5; i++) document.getElementById(`clue-${i}`).setAttribute('visible', 'true');
+
+            rotX = 0; rotY = 0;
+            rig.setAttribute('rotation', '0 0 0');
+
+            buildSuspectsTab();
+            switchTab('tab-view');
+            document.getElementById('c-box').style.display = 'none';
+        }
+
+        function switchTab(id) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active-tab'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            document.getElementById(id).classList.add('active-tab');
+            document.getElementById(`nav-${id.split('-')[1]}`).classList.add('active');
             
-            updateEvidenceCounter();
-            renderZones();
-            renderSuspects();
-            switchTab('evidence');
-            document.getElementById('interrogation-box').style.display = 'none';
+            // Фикс багов рендера A-Frame при переключении окон
+            if(id === 'tab-view') setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
         }
 
-        function switchTab(tab) {
-            document.getElementById('tab-evidence-content').style.display = tab === 'evidence' ? 'block' : 'none';
-            document.getElementById('tab-suspects-content').style.display = tab === 'suspects' ? 'block' : 'none';
-            document.getElementById('tab-accuse-content').style.display = tab === 'accuse' ? 'block' : 'none';
-            
-            document.getElementById('btn-ev').className = `tab-btn ${tab === 'evidence' ? 'active' : ''}`;
-            document.getElementById('btn-su').className = `tab-btn ${tab === 'suspects' ? 'active' : ''}`;
-            document.getElementById('btn-ac').className = `tab-btn ${tab === 'accuse' ? 'active' : ''}`;
+        function clickClue(num, desc) {
+            if(cluesState[num]) return;
+            cluesState[num] = true;
+            document.getElementById(`clue-${num}`).setAttribute('visible', 'false');
+            foundCount++;
+            document.getElementById('clue-score').innerText = foundCount;
+            alert(desc);
         }
 
-        function renderZones() {
-            const list = document.getElementById('zones-list');
-            list.innerHTML = '';
-            casesDB[currentCaseId].zones.forEach(z => {
-                const box = document.createElement('div');
-                box.className = `zone-box ${evidenceFound[z.id] ? 'searched' : ''}`;
-                box.innerHTML = `
-                    <div class="zone-name">${z.name}</div>
-                    <div class="zone-status">${evidenceFound[z.id] ? 'Изучено ✔' : 'Обыскать'}</div>
-                `;
-                box.onclick = () => searchZone(z.id, z.clue);
-                list.appendChild(box);
-            });
-        }
-
-        function searchZone(id, clueText) {
-            if (evidenceFound[id]) {
-                alert(`Вы уже находили здесь: \n\n${clueText}`);
-                return;
-            }
-            evidenceFound[id] = true;
-            updateEvidenceCounter();
-            renderZones();
-            alert(`🕵️ Найдена улика! \n\n${clueText}`);
-        }
-
-        function updateEvidenceCounter() {
-            let total = Object.values(evidenceFound).filter(Boolean).length;
-            document.getElementById('global-counter').innerText = `Улики: ${total} / 5`;
-        }
-
-        function renderSuspects() {
+        function buildSuspectsTab() {
             const list = document.getElementById('suspects-list');
-            const accList = document.getElementById('accuse-list');
-            list.innerHTML = '';
-            accList.innerHTML = '';
+            const acc = document.getElementById('accuse-list');
+            list.innerHTML = ''; acc.innerHTML = '';
 
-            casesDB[currentCaseId].suspects.forEach(s => {
-                // Обычный список допроса
-                const row = document.createElement('div');
-                row.className = 'suspect-item';
-                row.innerHTML = `
-                    <div class="suspect-meta"><strong>${s.name}</strong><span>${s.role}</span></div>
-                    <button class="btn" onclick="startInterrogation('${s.id}')">Допросить</button>
+            db[activeCase].suspects.forEach(s => {
+                list.innerHTML += `
+                    <div class="suspect-row">
+                        <div><strong>${s.name}</strong><br><small style="color:#777;">${s.role}</small></div>
+                        <button class="talk-btn" onclick="openInterrogation('${s.id}')">Допрос</button>
+                    </div>
                 `;
-                list.appendChild(row);
-
-                // Список для обвинения
-                const accRow = document.createElement('div');
-                accRow.className = 'accuse-item';
-                accRow.id = `accuse-card-${s.id}`;
-                accRow.innerHTML = `<h4>${s.name}</h4><p>${s.role}</p>`;
-                accRow.onclick = () => selectAccused(s.id);
-                accList.appendChild(accRow);
+                acc.innerHTML += `
+                    <div class="accuse-card" id="acc-card-${s.id}" onclick="selectAccused('${s.id}')">
+                        <strong>${s.name}</strong><p style="font-size:12px; color:#666;">Позиция: ${s.role}</p>
+                    </div>
+                `;
             });
         }
 
-        function startInterrogation(id) {
-            activeSuspectId = id;
-            const s = casesDB[currentCaseId].suspects.find(p => p.id === id);
+        function openInterrogation(id) {
+            const s = db[activeCase].suspects.find(p => p.id === id);
+            document.getElementById('c-box').style.display = 'block';
+            document.getElementById('c-name').innerText = s.name;
+            document.getElementById('c-text').innerText = s.text;
             
-            document.getElementById('interrogation-box').style.display = 'block';
-            document.getElementById('chat-name').innerText = s.name;
-            document.getElementById('chat-text').innerText = s.intro;
+            const opts = document.getElementById('c-options');
+            opts.innerHTML = '<button onclick="alert(\' Я рассказал всё, что вспомнил.\')">Где вы были вчера вечером?</button>';
             
-            const options = document.getElementById('chat-options');
-            options.innerHTML = '';
-
-            // Базовый вопрос
-            let b1 = document.createElement('button');
-            b1.innerText = "Где вы были во время совершения преступления?";
-            b1.onclick = () => {
-                document.getElementById('chat-text').innerText = '"Я уже говорил вам, детектив. У меня железное алиби, проверяйте кого-нибудь другого!"';
-            };
-            options.appendChild(b1);
-
-            // Динамический вопрос, если найдены ключевые улики (для Дела 1)
-            if (currentCaseId === 1 && id === 'page' && evidenceFound[3]) {
-                let b2 = document.createElement('button');
-                b2.innerText = "⚠️ [Предъявить Долговую Расписку]";
-                b2.style.borderColor = "#fc4445";
-                b2.onclick = () => {
-                    document.getElementById('chat-text').innerText = '"(Нервничает, бледнеет) Откуда у вас... Да, у меня долги! Но это не повод обвинять меня в краже кубка!"';
-                };
-                options.appendChild(b2);
-            }
-
-            // Динамический вопрос для Дела 2
-            if (currentCaseId === 2 && id === 'merchant' && evidenceFound[1]) {
-                let b2 = document.createElement('button');
-                b2.innerText = "⚠️ [Показать обломок Кинжала Гильдии]";
-                b2.style.borderColor = "#fc4445";
-                b2.onclick = () => {
-                    document.getElementById('chat-text').innerText = '"Да, это нож нашей торговой палаты. Я потерял его... Или у меня его украли! Вы ничего не докажете!"';
-                };
-                options.appendChild(b2);
+            if(foundCount >= 3) {
+                opts.innerHTML += `<button style="border-color:#e74c3c; color:#e74c3c;" onclick="alert('Вы прижали свидетеля фактами! Он начинает путаться в показаниях...')">⚠️ [Предъявить собранные улики]</button>`;
             }
         }
 
         function selectAccused(id) {
-            selectedAccusedId = id;
-            document.querySelectorAll('.accuse-item').forEach(el => el.classList.remove('selected'));
-            document.getElementById(`accuse-card-${id}`).classList.add('selected');
+            selectedAccused = id;
+            document.querySelectorAll('.accuse-card').forEach(c => c.classList.remove('selected'));
+            document.getElementById(`acc-card-${id}`).classList.add('selected');
         }
 
-        function submitVerdict() {
-            if (!selectedAccusedId) {
-                alert("Сначала выберите, кому предъявить официальное обвинение!");
-                return;
-            }
-
-            let totalClues = Object.values(evidenceFound).filter(Boolean).length;
-            const modal = document.getElementById('result-modal');
+        function closeCaseInCourt() {
+            if(!selectedAccused) { alert('Выберите виновного!'); return; }
+            
+            const scr = document.getElementById('result-screen');
             const title = document.getElementById('res-title');
-            const text = document.getElementById('res-text');
+            const desc = document.getElementById('res-desc');
 
-            if (totalClues < 5) {
-                title.innerText = "⚖️ ДЕЛО ОТКЛОНЕНО СУДОМ";
+            if(foundCount < 5) {
+                title.innerText = "❌ НЕДОСТАТОЧНО УЛИК";
                 title.style.color = "#e67e22";
-                text.innerText = `Вы собрали всего ${totalClues} из 5 необходимых вещественных доказательств. Судья посчитал доводы следствия неубедительными. Вернитесь на место и обыщите все зоны до конца!`;
-                modal.style.display = 'flex';
+                desc.innerText = `Вы собрали только ${foundCount}/5 доказательств. Суд отклонил обвинение из-за слабой базы. Вернитесь в 3D комнату и тщательно осмотрите её со всех сторон!`;
+                scr.style.display = 'flex';
                 return;
             }
 
-            const currentCase = casesDB[currentCaseId];
-            if (selectedAccusedId === currentCase.killer) {
-                title.innerText = "🏆 ПРАВОСУДИЕ ТОРЖЕСТВУЕТ!";
-                title.style.color = "#66fcf1";
-                text.innerText = "Блестящая победа! На основе собранных вами 5 неопровержимых улик и показаний свидетелей, подсудимый сознался прямо на заседании суда. Следующая папка в архиве раскрыта.";
-                if (currentCaseId === unlockedCase && unlockedCase < 8) {
-                    unlockedCase++;
-                }
+            if(selectedAccused === db[activeCase].killer) {
+                title.innerText = "🏆 ИСТИНА НАЙДЕНА!";
+                title.style.color = "#27ae60";
+                desc.innerText = "Поздравляем! На основе ваших 5 улик суд полностью признал вину подсудимого. Преступник отправлен за решетку, а вам доступно следующее дело.";
+                if(activeCase === unlockedCase && unlockedCase < 8) unlockedCase++;
             } else {
                 title.innerText = "❌ СУДЕБНАЯ ОШИБКА";
-                title.style.color = "#fc4445";
-                text.innerText = "Вы обвинили невиновного. Адвокаты легко разбили вашу теорию, а настоящий убийца успел сжечь оставшиеся документы и скрылся из страны. Попробуйте пройти дело заново.";
+                title.style.color = "#e74c3c";
+                desc.innerText = "Вы обвинили невиновного человека. Настоящий убийца воспользовался ошибкой следствия и скрылся навсегда.";
             }
-            modal.style.display = 'flex';
+            scr.style.display = 'flex';
         }
 
-        function closeResultModal() {
-            document.getElementById('result-modal').style.display = 'none';
-            exitToMenu();
+        function finishResult() {
+            document.getElementById('result-screen').style.display = 'none';
+            goBack();
         }
 
-        function exitToMenu() {
+        function goBack() {
             document.getElementById('game-screen').style.display = 'none';
-            document.getElementById('menu-screen').style.display = 'flex';
-            initMenu();
+            document.getElementById('main-menu').style.display = 'flex';
+            buildMenu();
         }
 
-        initMenu();
+        buildMenu();
     </script>
 </body>
 </html>
