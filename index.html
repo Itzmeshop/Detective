@@ -3,360 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>3D Детектив</title>
-    <!-- Подключаем стабильный облегченный 3D движок -->
-    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+    <title>Последний Егерь: Битва со Стихией</title>
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-        body, html { width: 100%; height: 100%; font-family: sans-serif; background: #0c0c0e; color: #e0e0e0; overflow: hidden; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; user-select: none; }
+        body { background: #11141a; color: #e1e7ed; overflow: hidden; height: 100vh; display: flex; flex-direction: column; }
         
-        /* МЕНЮ */
-        #main-menu { padding: 20px; display: flex; flex-direction: column; height: 100%; overflow-y: auto; background: #111116; }
-        .menu-title { text-align: center; margin: 20px 0; font-size: 22px; color: #f1c40f; font-weight: bold; }
-        .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
-        .card { background: #1c1c24; border: 1px solid #333; border-radius: 12px; padding: 15px; text-align: center; cursor: pointer; }
-        .card.locked { opacity: 0.3; }
+        /* Панель состояния */
+        .hud { background: #1a1f29; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3b4856; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .stats { display: flex; gap: 15px; font-size: 14px; font-weight: bold; }
+        .stat-val { color: #00ffcc; }
+        .wind-indicator { background: #242c37; padding: 5px 10px; border-radius: 6px; font-size: 13px; display: flex; align-items: center; gap: 5px; border: 1px solid #3b4856; }
+        #wind-arrow { display: inline-block; font-size: 16px; color: #ff9900; font-weight: bold; transition: transform 0.3s ease; }
 
-        /* ИГРОВОЙ ЭКРАН */
-        #game-screen { display: none; width: 100%; height: 100%; flex-direction: column; position: relative; }
-        .top-bar { height: 50px; background: #111116; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; z-index: 10; }
-        .back-btn { background: #222; border: 1px solid #f1c40f; color: #f1c40f; padding: 5px 10px; border-radius: 6px; cursor: pointer; }
+        /* Игровое поле */
+        .game-container { flex: 1; display: flex; align-items: center; justify-content: center; padding: 10px; overflow: auto; background: #0d0f13; }
+        .grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px; background: #1a1f29; padding: 4px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        /* Клетки */
+        .cell { width: 35px; height: 35px; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 18px; cursor: pointer; transition: all 0.2s; position: relative; }
+        @media (min-width: 600px) { .cell { width: 50px; height: 50px; font-size: 24px; } }
+        
+        /* Типы биомов */
+        .grass { background: #2e7d32; } /* Трава */
+        .tree { background: #1b5e20; }  /* Густой лес */
+        .water { background: #0288d1; } /* Река */
+        .trench { background: #5d4037; }/* Просека/Земля */
+        
+        /* Состояния огня */
+        .fire { background: #d84315 !important; animation: burn 0.5s infinite alternate; }
+        .fire::after { content: '🔥'; position: absolute; }
+        .ash { background: #37474f !important; } /* Сгорело */
 
-        /* ВКЛАДКИ */
-        .tab-content { flex-grow: 1; position: relative; display: none; height: calc(100% - 105px); background: #111116; overflow-y: auto; }
-        .tab-content.active-tab { display: block; }
-        #tab-view { background: #000; overflow: hidden; }
+        @keyframes burn { 
+            0% { box-shadow: inset 0 0 5px #ff1100; transform: scale(0.98); } 
+            100% { box-shadow: inset 0 0 12px #ffcc00; transform: scale(1); } 
+        }
 
-        /* ИНТЕРФЕЙС ПОВЕРХ 3D */
-        .ar-info { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 8px 15px; border-radius: 15px; font-size: 11px; z-index: 10; border: 1px solid #f1c40f; text-align: center; width: 90%; }
-        .clue-counter { position: absolute; bottom: 15px; left: 15px; background: rgba(0,0,0,0.8); border: 1px solid #f1c40f; padding: 6px 12px; border-radius: 8px; z-index: 10; font-size: 12px; color: #f1c40f; font-weight: bold; }
+        /* Инструменты управления */
+        .controls { background: #1a1f29; padding: 15px; border-top: 2px solid #3b4856; display: flex; flex-direction: column; gap: 10px; }
+        .actions-row { display: flex; gap: 10px; justify-content: center; }
+        .btn { flex: 1; max-width: 150px; background: #242c37; border: 1px solid #455365; color: #fff; padding: 10px; border-radius: 6px; font-weight: bold; font-size: 13px; cursor: pointer; text-align: center; }
+        .btn.active { background: #00ffcc; color: #0d0f13; border-color: #00ffcc; }
+        .btn-end { background: #e65100; border-color: #ff6d00; color: white; }
 
-        /* ДОПРОС И ОБВИНЕНИЕ */
-        .suspect-row { background: #1c1c24; padding: 12px; border-radius: 10px; margin: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
-        .talk-btn { background: #f1c40f; color: #000; border: none; padding: 6px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-        .chat-box { background: #1c1c24; border: 1px solid #f1c40f; border-radius: 10px; padding: 15px; margin: 10px; }
-        .chat-text { font-style: italic; font-size: 14px; background: #000; padding: 10px; border-radius: 6px; margin-bottom: 10px; border-left: 3px solid #f1c40f; }
-        .chat-options button { display: block; width: 100%; background: #222; border: 1px solid #444; color: #fff; padding: 8px; margin: 5px 0; border-radius: 6px; text-align: left; }
-
-        .accuse-card { background: #1c1c24; padding: 12px; border-radius: 10px; margin: 10px; border: 2px solid #333; }
-        .accuse-card.selected { border-color: #e74c3c; background: #2a1c1c; }
-
-        /* НАВИГАЦИЯ СНИЗУ */
-        .bottom-nav { height: 55px; background: #111116; border-top: 1px solid #222; display: flex; }
-        .nav-item { flex: 1; background: none; border: none; color: #777; font-size: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; }
-        .nav-item.active { color: #f1c40f; background: #1c1c24; font-weight: bold; }
-
-        /* ОКНО РЕЗУЛЬТАТА */
-        #result-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 100; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
+        /* Окна уведомлений */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(13,15,19,0.95); z-index: 100; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
+        .modal h2 { font-size: 28px; margin-bottom: 15px; color: #00ffcc; }
+        .modal p { font-size: 15px; margin-bottom: 25px; color: #a4b0be; max-width: 400px; line-height: 1.5; }
     </style>
 </head>
 <body>
 
-    <!-- ЭКРАН 1: ГЛАВНОЕ МЕНЮ -->
-    <div id="main-menu">
-        <h1 class="menu-title">📂 АРХИВЫ СЫСКНОЙ ПОЛИЦИИ</h1>
-        <div class="grid" id="menu-grid"></div>
-    </div>
-
-    <!-- ЭКРАН 2: ИГРА (3D + ИНТЕРФЕЙС) -->
-    <div id="game-screen">
-        <div class="top-bar">
-            <button class="back-btn" onclick="goBack()">← Выйти</button>
-            <span id="header-title" style="font-weight:bold; font-size:14px;">Дело</span>
-            <div style="width:50px;"></div>
+    <div class="hud">
+        <div class="stats">
+            <div>ОД: <span id="ap-val" class="stat-val">3/3</span></div>
+            <div>Спасено: <span id="saved-val" class="stat-val">0/3</span></div>
+            <div>Ход: <span id="turn-val" class="stat-val">1</span></div>
         </div>
-
-        <!-- ВКЛАДКА 1: ПЛАВНЫЙ СТАБИЛЬНЫЙ 3D ОБЗОР -->
-        <div id="tab-view" class="tab-content active-tab">
-            <div class="ar-info"><b>Крутите экран пальцем!</b> Осмотритесь на 360° во все стороны. Найдите все 5 улик.</div>
-            <div class="clue-counter">Улики: <span id="clue-score">0</span> / 5</div>
-            
-            <!-- Встроенная 3D сцена -->
-            <a-scene embedded vr-mode-ui="enabled: false" loading-screen="enabled: false">
-                
-                <!-- Коробка комнаты. Сюда можно загружать любые ИИ текстуры стен (src) -->
-                <a-box position="0 1.5 0" scale="6 4 6" material="color: #2c3e50; side: double; roughness: 0.8;">
-                    <!-- Для реализма ИИ-генерации вы можете вешать картинки прямо на стены: src="my-ai-room.jpg" -->
-                </a-box>
-
-                <!-- Освещение сцены -->
-                <a-entity light="type: ambient; color: #777; intensity: 0.6"></a-entity>
-                <a-entity light="type: directional; intensity: 0.6" position="1 3 1"></a-entity>
-
-                <!-- 5 ИНТЕРАКТИВНЫХ УЛИК РАЗБРОСАННЫХ ПО 3D ПРОСТРАНСТВУ -->
-                <!-- Улика 1: Спереди -->
-                <a-entity id="clue-1" position="0 0.8 -2.2" class="click-target" onclick="clickClue(1, '🏆 Золотой кубок со следами яда на дне.')">
-                    <a-cylinder radius="0.1" height="0.25" color="#f1c40f" metalness="0.7"></a-cylinder>
-                </a-entity>
-
-                <!-- Улика 2: Справа -->
-                <a-entity id="clue-2" position="2.2 0.5 -1" class="click-target" onclick="clickClue(2, '⚔️ Изломанный кинжал со стертым клеймом.')">
-                    <a-box width="0.05" height="0.4" depth="0.05" rotation="0 0 45" color="#95a5a6"></a-box>
-                </a-entity>
-
-                <!-- Улика 3: Слева -->
-                <a-entity id="clue-3" position="-2.2 0.3 0" class="click-target" onclick="clickClue(3, '⚙️ Воровская отмычка, застрявшая в щели пола.')">
-                    <a-cylinder radius="0.02; height: 0.3" rotation="90 0 0" color="#7f8c8d"></a-cylinder>
-                </a-entity>
-
-                <!-- Улика 4: Сзади -->
-                <a-entity id="clue-4" position="0 1.2 2.2" class="click-target" onclick="clickClue(4, '🧪 Пустой фиал из-под редкого растительного токсина.')">
-                    <a-sphere radius="0.08" color="#9b59b6"></a-sphere>
-                </a-entity>
-
-                <!-- Улика 5: На полу под ногами -->
-                <a-entity id="clue-5" position="0.5 0.05 -0.8" class="click-target" onclick="clickClue(5, '📜 Обгоревший листок бумаги с зашифрованным текстом.')">
-                    <a-box width="0.3" height="0.01" depth="0.2" color="#e67e22"></a-box>
-                </a-entity>
-
-                <!-- УПРАВЛЕНИЕ КАМЕРОЙ: Плавный тач без прыжков -->
-                <a-entity id="cam-rig">
-                    <a-entity camera id="main-cam" position="0 1.5 0" look-controls="enabled: false">
-                        <!-- Наведённый прицел в центре экрана для кликов -->
-                        <a-cursor color="#f1c40f" scale="1.2 1.2 1.2" raycaster="objects: .click-target"></a-cursor>
-                    </a-entity>
-                </a-entity>
-            </a-scene>
-        </div>
-
-        <!-- ВКЛАДКА 2: ДОПРОС -->
-        <div id="tab-suspects" class="tab-content">
-            <div id="suspects-list"></div>
-            <div class="chat-box" id="c-box" style="display:none;">
-                <h4 id="c-name" style="color:#f1c40f;">Имя</h4>
-                <p class="chat-text" id="c-text">...</p>
-                <div class="chat-options" id="c-options"></div>
-            </div>
-        </div>
-
-        <!-- ВКЛАДКА 3: СУД -->
-        <div id="tab-accuse" class="tab-content" style="padding:10px;">
-            <h4 style="margin:10px 0;">Укажите истинного убийцу:</h4>
-            <div id="accuse-list"></div>
-            <button class="talk-btn" style="background:#e74c3c; color:#fff; width:100%; padding:12px; margin-top:15px; font-size:15px;" onclick="closeCaseInCourt()">ВЫНЕСТИ ПРИГОВОР</button>
-        </div>
-
-        <!-- КНОПКИ НАВИГАЦИИ -->
-        <div class="bottom-nav">
-            <button class="nav-item active" id="nav-view" onclick="switchTab('tab-view')">👁️ Осмотр</button>
-            <button class="nav-item" id="nav-suspects" onclick="switchTab('tab-suspects')">💬 Допрос (4)</button>
-            <button class="nav-item" id="nav-accuse" onclick="switchTab('tab-accuse')">⚖️ Суд</button>
+        <div class="wind-indicator">
+            <span>Ветер:</span>
+            <span id="wind-arrow">↑</span>
+            <span id="wind-txt">СЕВЕР</span>
         </div>
     </div>
 
-    <!-- ФИНАЛЬНОЕ ОКНО -->
-    <div id="result-screen">
-        <h2 id="res-title" style="font-size:24px; margin-bottom:15px;">Результат</h2>
-        <p id="res-desc" style="color:#bdc3c7; line-height:1.4; margin-bottom:20px; font-size:14px; max-width:400px;"></p>
-        <button class="talk-btn" style="padding:10px 25px;" onclick="finishResult()">Продолжить</button>
+    <div class="game-container">
+        <div class="grid" id="map-grid"></div>
+    </div>
+
+    <div class="controls">
+        <p style="text-align: center; font-size: 12px; color: #8899a6;">Выберите режим, затем нажмите на соседнюю клетку:</p>
+        <div class="actions-row">
+            <button class="btn active" id="mode-move" onclick="setMode('move')">🚶 Шаг (1 ОД)</button>
+            <button class="btn" id="mode-water" onclick="setMode('water')">💧 Тушить (1 ОД)</button>
+            <button class="btn" id="mode-dig" onclick="setMode('dig')">⛏️ Просека (2 ОД)</button>
+        </div>
+        <div class="actions-row">
+            <button class="btn btn-end" style="max-width: 310px;" onclick="endTurn()">🔥 КОНЕЦ ХОДА (Распространение огня)</button>
+        </div>
+    </div>
+
+    <div id="game-modal" class="modal">
+        <h2 id="modal-title">ПОБЕДА</h2>
+        <p id="modal-desc"></p>
+        <button class="btn" style="background:#00ffcc; color:#000;" onclick="location.reload()">Играть снова</button>
     </div>
 
     <script>
-        let unlockedCase = 1;
-        let activeCase = 1;
-        let selectedAccused = null;
-        let foundCount = 0;
-        let cluesState = {1:false, 2:false, 3:false, 4:false, 5:false};
-
-        const db = {
-            1: {
-                title: "Похищение кубка лорда", killer: "page",
-                suspects: [
-                    { id: "smith", name: "Кузнец Бьерн", role: "Мастер по замкам", text: '"Я работал в кузнице всю ночь. Кубок лорда в глаза не видел."' },
-                    { id: "lady", name: "Леди Элеонора", role: "Жена лорда", text: '"Кубок украли из запертой спальни, пока мы спали. Это ужасно!"' },
-                    { id: "guard", name: "Стражник Гилберт", role: "Охрана дверей", text: '"Мимо меня никто не проходил, дверь была закрыта на внутренний засов."' },
-                    { id: "page", name: "Слуга Филипп", role: "Подносчик вина", text: '"Я просто убирал со стола посуду вечером. Я не крал!"' }
-                ]
-            },
-            2: {
-                title: "Убийство в мастерской", killer: "merchant",
-                suspects: [
-                    { id: "apprentice", name: "Ученик Ганс", role: "Подмастерье", text: '"Мастер ругал меня вчера, но ночью я спал у себя в каморке."' },
-                    { id: "merchant", name: "Купец Олаф", role: "Кредитор", text: '"Он был должен мне мешок золота! Его смерть лишила меня денег!"' },
-                    { id: "monk", name: "Монах Иероним", role: "Лекарь", text: '"Я зашел проведать ювелира, но застал его уже мертвым на полу."' },
-                    { id: "thief", name: "Вор Клемент", role: "Карманник", text: '"В эту ночь я чистил карманы в портовом кабаке, у меня куча свидетелей."' }
-                ]
-            }
-        };
-
-        // Генерируем остальные дела для масштаба (до 8)
-        for(let i=3; i<=8; i++) {
-            db[i] = {
-                title: `Секретное дело №${i}`, killer: "sus_1",
-                suspects: [
-                    { id: "sus_1", name: "Подозреваемый X", role: "Подозреваемый", text: '"Я ни в чем не виноват, детектив!"' },
-                    { id: "sus_2", name: "Подозреваемый Y", role: "Свидетель", text: '"Я ничего странного не заметил той ночью."' },
-                    { id: "sus_3", name: "Подозреваемый Z", role: "Прохожий", text: '"Я просто гулял мимо дворцовой площади."' },
-                    { id: "sus_4", name: "Подозреваемый W", role: "Служащий", text: '"В мое дежурство всё шло строго по инструкции."' }
-                ]
-            };
-        }
-
-        // НАПИСАННЫЙ С НУЛЯ ТАЧ-СКРИПТ ДЛЯ КАМЕРЫ (Стабильный 3D обзор на смартфонах)
-        const rig = document.getElementById('cam-rig');
-        let startX = 0, startY = 0;
-        let rotX = 0, rotY = 0;
-
-        function touchStart(e) {
-            startX = e.touches ? e.touches[0].clientX : e.clientX;
-            startY = e.touches ? e.touches[0].clientY : e.clientY;
-        }
-        function touchMove(e) {
-            if (document.getElementById('tab-view').classList.contains('active-tab')) {
-                const x = e.touches ? e.touches[0].clientX : e.clientX;
-                const y = e.touches ? e.touches[0].clientY : e.clientY;
-                
-                let dx = (x - startX) * 0.25;
-                let dy = (y - startY) * 0.25;
-
-                rotY += dx;
-                rotX = Math.max(-60, Math.min(60, rotX - dy)); // Ограничение обзора вверх/вниз
-
-                rig.setAttribute('rotation', `${rotX} ${rotY} 0`);
-                startX = x; startY = y;
-            }
-        }
-        const view = document.getElementById('tab-view');
-        view.addEventListener('touchstart', touchStart, {passive:true});
-        view.addEventListener('touchmove', touchMove, {passive:true});
-        view.addEventListener('mousedown', touchStart);
-        view.addEventListener('mousemove', (e) => { if(e.buttons === 1) touchMove(e); });
-
-        // МЕНЮ И СИСТЕМА
-        function buildMenu() {
-            const grid = document.getElementById('menu-grid');
-            grid.innerHTML = '';
-            for(let i=1; i<=8; i++) {
-                const isLocked = i > unlockedCase;
-                grid.innerHTML += `
-                    <div class="card ${isLocked ? 'locked' : ''}" onclick="${isLocked ? '' : `loadCase(${i})`}">
-                        <div style="font-size:24px;">${isLocked ? '🔒' : '📁'}</div>
-                        <div style="font-size:13px; font-weight:bold; margin-top:5px; color:#fff;">${db[i].title}</div>
-                    </div>
-                `;
-            }
-        }
-
-        function loadCase(id) {
-            activeCase = id;
-            foundCount = 0;
-            cluesState = {1:false, 2:false, 3:false, 4:false, 5:false};
-            selectedAccused = null;
-            document.getElementById('clue-score').innerText = "0";
-
-            document.getElementById('header-title').innerText = db[id].title;
-            document.getElementById('main-menu').style.display = 'none';
-            document.getElementById('game-screen').style.display = 'flex';
-
-            for(let i=1; i<=5; i++) document.getElementById(`clue-${i}`).setAttribute('visible', 'true');
-
-            rotX = 0; rotY = 0;
-            rig.setAttribute('rotation', '0 0 0');
-
-            buildSuspectsTab();
-            switchTab('tab-view');
-            document.getElementById('c-box').style.display = 'none';
-        }
-
-        function switchTab(id) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active-tab'));
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            document.getElementById(id).classList.add('active-tab');
-            document.getElementById(`nav-${id.split('-')[1]}`).classList.add('active');
-            
-            // Фикс багов рендера A-Frame при переключении окон
-            if(id === 'tab-view') setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
-        }
-
-        function clickClue(num, desc) {
-            if(cluesState[num]) return;
-            cluesState[num] = true;
-            document.getElementById(`clue-${num}`).setAttribute('visible', 'false');
-            foundCount++;
-            document.getElementById('clue-score').innerText = foundCount;
-            alert(desc);
-        }
-
-        function buildSuspectsTab() {
-            const list = document.getElementById('suspects-list');
-            const acc = document.getElementById('accuse-list');
-            list.innerHTML = ''; acc.innerHTML = '';
-
-            db[activeCase].suspects.forEach(s => {
-                list.innerHTML += `
-                    <div class="suspect-row">
-                        <div><strong>${s.name}</strong><br><small style="color:#777;">${s.role}</small></div>
-                        <button class="talk-btn" onclick="openInterrogation('${s.id}')">Допрос</button>
-                    </div>
-                `;
-                acc.innerHTML += `
-                    <div class="accuse-card" id="acc-card-${s.id}" onclick="selectAccused('${s.id}')">
-                        <strong>${s.name}</strong><p style="font-size:12px; color:#666;">Позиция: ${s.role}</p>
-                    </div>
-                `;
-            });
-        }
-
-        function openInterrogation(id) {
-            const s = db[activeCase].suspects.find(p => p.id === id);
-            document.getElementById('c-box').style.display = 'block';
-            document.getElementById('c-name').innerText = s.name;
-            document.getElementById('c-text').innerText = s.text;
-            
-            const opts = document.getElementById('c-options');
-            opts.innerHTML = '<button onclick="alert(\' Я рассказал всё, что вспомнил.\')">Где вы были вчера вечером?</button>';
-            
-            if(foundCount >= 3) {
-                opts.innerHTML += `<button style="border-color:#e74c3c; color:#e74c3c;" onclick="alert('Вы прижали свидетеля фактами! Он начинает путаться в показаниях...')">⚠️ [Предъявить собранные улики]</button>`;
-            }
-        }
-
-        function selectAccused(id) {
-            selectedAccused = id;
-            document.querySelectorAll('.accuse-card').forEach(c => c.classList.remove('selected'));
-            document.getElementById(`acc-card-${id}`).classList.add('selected');
-        }
-
-        function closeCaseInCourt() {
-            if(!selectedAccused) { alert('Выберите виновного!'); return; }
-            
-            const scr = document.getElementById('result-screen');
-            const title = document.getElementById('res-title');
-            const desc = document.getElementById('res-desc');
-
-            if(foundCount < 5) {
-                title.innerText = "❌ НЕДОСТАТОЧНО УЛИК";
-                title.style.color = "#e67e22";
-                desc.innerText = `Вы собрали только ${foundCount}/5 доказательств. Суд отклонил обвинение из-за слабой базы. Вернитесь в 3D комнату и тщательно осмотрите её со всех сторон!`;
-                scr.style.display = 'flex';
-                return;
-            }
-
-            if(selectedAccused === db[activeCase].killer) {
-                title.innerText = "🏆 ИСТИНА НАЙДЕНА!";
-                title.style.color = "#27ae60";
-                desc.innerText = "Поздравляем! На основе ваших 5 улик суд полностью признал вину подсудимого. Преступник отправлен за решетку, а вам доступно следующее дело.";
-                if(activeCase === unlockedCase && unlockedCase < 8) unlockedCase++;
-            } else {
-                title.innerText = "❌ СУДЕБНАЯ ОШИБКА";
-                title.style.color = "#e74c3c";
-                desc.innerText = "Вы обвинили невиновного человека. Настоящий убийца воспользовался ошибкой следствия и скрылся навсегда.";
-            }
-            scr.style.display = 'flex';
-        }
-
-        function finishResult() {
-            document.getElementById('result-screen').style.display = 'none';
-            goBack();
-        }
-
-        function goBack() {
-            document.getElementById('game-screen').style.display = 'none';
-            document.getElementById('main-menu').style.display = 'flex';
-            buildMenu();
-        }
-
-        buildMenu();
-    </script>
-</body>
-</html>
+        const GRID_SIZE = 10;
+        let mapData = [];
+        let player = { x: 0, y: 9
